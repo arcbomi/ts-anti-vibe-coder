@@ -1,17 +1,30 @@
+import { ApiError } from '@/shared/api/client'
 import { repositoryApi } from '@/domains/repository/api/repositoryApi'
 import { repositoryStore } from '@/domains/repository/store/repositoryStore'
 
+function botAccessErrorMessage(error: unknown) {
+  if (error instanceof ApiError) return error.message
+  return 'Bot access denied. Please make sure you added the correct GitLab userbot as a collaborator.'
+}
+
 export function useBotAccessCheck() {
   return {
-    check: async () => {
-      const repo = repositoryStore.getState().repository
-      if (!repo) return
-      repositoryStore.getState().setBotAccess('checking')
+    checkBotAccess: async () => {
+      const repository = repositoryStore.getState().repository
+      if (!repository) return
+
+      repositoryStore.getState().setCheckingBotAccess(true)
+      repositoryStore.getState().setError(null)
+      repositoryStore.getState().setBotAccessStatus('checking')
+
       try {
-        const res = await repositoryApi.checkBotAccess(repo.id)
-        repositoryStore.getState().setBotAccess(res.ok ? 'granted' : 'denied')
-      } catch {
-        repositoryStore.getState().setBotAccess('denied')
+        const checkedRepository = await repositoryApi.checkBotAccess(repository.id)
+        repositoryStore.getState().setRepository(checkedRepository)
+      } catch (error) {
+        repositoryStore.getState().setBotAccessStatus('failed')
+        repositoryStore.getState().setError(botAccessErrorMessage(error))
+      } finally {
+        repositoryStore.getState().setCheckingBotAccess(false)
       }
     },
   }
