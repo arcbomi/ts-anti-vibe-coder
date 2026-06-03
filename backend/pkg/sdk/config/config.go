@@ -4,6 +4,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -25,10 +26,16 @@ type Config struct {
 	DatabaseURL string
 	PostgresDSN string // Deprecated alias for DatabaseURL.
 
-	RedisAddr      string
-	RedisPassword  string
-	RedisDB        int
-	QueueNamespace string
+	RedisAddr                   string
+	RedisPassword               string
+	RedisDB                     int
+	QueueNamespace              string
+	QueueURL                    string
+	AnalysisQueueName           string
+	AnalysisDeadLetterQueueName string
+	WorkerConcurrency           int
+	MaxJobAttempts              int
+	RetryDelaySeconds           int
 
 	GitLabBaseURL     string
 	GitLabBotToken    string
@@ -119,6 +126,18 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid REDIS_DB: %w", err)
 	}
+	workerConcurrency, err := parseInt(get("WORKER_CONCURRENCY"), 3)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid WORKER_CONCURRENCY: %w", err)
+	}
+	maxJobAttempts, err := parseInt(get("MAX_JOB_ATTEMPTS"), 3)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid MAX_JOB_ATTEMPTS: %w", err)
+	}
+	retryDelaySeconds, err := parseInt(get("RETRY_DELAY_SECONDS"), 30)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid RETRY_DELAY_SECONDS: %w", err)
+	}
 	aiTimeout, err := parseInt(get("AI_TIMEOUT_SECONDS"), 60)
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid AI_TIMEOUT_SECONDS: %w", err)
@@ -137,6 +156,8 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 	}
 
 	databaseURL := firstNonEmpty(get("DATABASE_URL"), get("POSTGRES_DSN"))
+	queueURL := get("QUEUE_URL")
+	redisAddr := firstNonEmpty(get("REDIS_ADDR"), redisAddrFromURL(queueURL), "localhost:6379")
 	jwtSecret := firstNonEmpty(get("JWT_SECRET"), get("AUTH_JWT_HS256_SECRET"))
 
 	cfg := Config{
@@ -148,10 +169,16 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 		DatabaseURL: databaseURL,
 		PostgresDSN: databaseURL,
 
-		RedisAddr:      firstNonEmpty(get("REDIS_ADDR"), "localhost:6379"),
-		RedisPassword:  get("REDIS_PASSWORD"),
-		RedisDB:        redisDB,
-		QueueNamespace: firstNonEmpty(get("QUEUE_NAMESPACE"), "anti_vibe"),
+		RedisAddr:                   redisAddr,
+		RedisPassword:               firstNonEmpty(get("REDIS_PASSWORD"), redisPasswordFromURL(queueURL)),
+		RedisDB:                     redisDB,
+		QueueNamespace:              firstNonEmpty(get("QUEUE_NAMESPACE"), "anti_vibe"),
+		QueueURL:                    queueURL,
+		AnalysisQueueName:           firstNonEmpty(get("ANALYSIS_QUEUE_NAME"), "analysis_jobs"),
+		AnalysisDeadLetterQueueName: firstNonEmpty(get("ANALYSIS_DEAD_LETTER_QUEUE_NAME"), "analysis_jobs_dead"),
+		WorkerConcurrency:           workerConcurrency,
+		MaxJobAttempts:              maxJobAttempts,
+		RetryDelaySeconds:           retryDelaySeconds,
 
 		GitLabBaseURL:     firstNonEmpty(get("GITLAB_BASE_URL"), "https://gitlab.com"),
 		GitLabBotToken:    get("GITLAB_BOT_TOKEN"),
@@ -175,6 +202,29 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 		ExamPassPercent: passPercent,
 	}
 	return cfg, nil
+}
+
+func redisAddrFromURL(raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	return u.Host
+}
+
+func redisPasswordFromURL(raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.User == nil {
+		return ""
+	}
+	password, _ := u.User.Password()
+	return password
 }
 
 func toEnvPrefix(serviceName string) string {

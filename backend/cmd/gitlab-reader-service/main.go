@@ -49,7 +49,7 @@ func main() {
 		store,
 		internalgitlab.NewValidator(cfg.GitLabBaseURL),
 		gl,
-		queue.NewProducer(redisClient),
+		queue.NewProducerWithQueue(redisClient, cfg.AnalysisQueueName),
 		filter,
 		log,
 	)

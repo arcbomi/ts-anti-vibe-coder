@@ -17,6 +17,33 @@ services:
     volumes:
       - redis_data:/data
 
+  worker-service:
+    image: golang:1.24
+    working_dir: /app/backend
+    command: go run ./cmd/worker-service
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      SERVICE_NAME: worker-service
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/anti_vibe?sslmode=disable
+      QUEUE_URL: redis://redis:6379
+      REDIS_ADDR: redis:6379
+      ANALYSIS_QUEUE_NAME: analysis_jobs
+      ANALYSIS_DEAD_LETTER_QUEUE_NAME: analysis_jobs_dead
+      WORKER_CONCURRENCY: 3
+      MAX_JOB_ATTEMPTS: 3
+      RETRY_DELAY_SECONDS: 30
+      GITLAB_BASE_URL: https://gitlab.com
+      GITLAB_BOT_TOKEN: ${GITLAB_BOT_TOKEN:-replace_me}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com}
+      AI_API_KEY: ${AI_API_KEY:-replace_me}
+      AI_MODEL: ${AI_MODEL:-gpt-4.1-mini}
+      AI_TIMEOUT_SECONDS: 60
+    volumes:
+      - .:/app
+
 volumes:
   postgres_data:
   redis_data:
