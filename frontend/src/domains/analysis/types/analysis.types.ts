@@ -9,7 +9,16 @@ export type AnalysisJobStatus =
   | 'completed'
   | 'failed'
 
-export type AnalysisJob = {
+export interface AnalysisJob {
   id: string
+  repositoryId: string
   status: AnalysisJobStatus
+  progressMessage?: string
+  errorMessage?: string
+  createdAt: string
+  completedAt?: string
+}
+
+export type StartAnalysisResponse = {
+  analysis_job_id: string
 }

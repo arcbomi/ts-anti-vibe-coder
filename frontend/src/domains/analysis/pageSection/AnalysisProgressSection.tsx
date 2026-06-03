@@ -1,21 +1,31 @@
-import { useParams } from 'react-router-dom'
-import { LoadingState } from '@/shared/components/LoadingState'
-import { ErrorState } from '@/shared/components/ErrorState'
 import { AnalysisProgress } from '@/domains/analysis/components/AnalysisProgress'
 import { useAnalysisJob } from '@/domains/analysis/hooks/useAnalysisJob'
+import { ErrorState } from '@/shared/components/ErrorState'
+import { LoadingState } from '@/shared/components/LoadingState'
 
-export function AnalysisProgressSection() {
-  const { jobId } = useParams()
-  const { job, error } = useAnalysisJob(jobId)
+type AnalysisProgressSectionProps = {
+  jobId?: string
+}
 
-  if (!jobId) return <ErrorState message="Missing jobId" />
-  if (error) return <ErrorState message={error} />
-  if (!job) return <LoadingState label="Loading analysis job..." />
+export function AnalysisProgressSection({ jobId }: AnalysisProgressSectionProps) {
+  const { job, isLoading, error } = useAnalysisJob(jobId)
+
+  if (error && !job) return <ErrorState message={error} />
+  if (isLoading && !job) return <LoadingState label="Loading analysis job..." />
+  if (!job) return <LoadingState label="Waiting for analysis job..." />
 
   return (
-    <div>
-      <h1>Analysis</h1>
-      <AnalysisProgress status={job.status} />
-    </div>
+    <section>
+      <h1>AI Analysis Progress</h1>
+      {error && <ErrorState message={error} />}
+      <AnalysisProgress job={job} />
+      {job.status === 'completed' && (
+        <div>
+          <h2>Analysis completed.</h2>
+          <p>20 English-only exam questions are ready.</p>
+          <p>You can now wait for the Friday offline exam.</p>
+        </div>
+      )}
+    </section>
   )
 }
