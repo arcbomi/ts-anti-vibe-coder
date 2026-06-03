@@ -17,8 +17,9 @@ export function ExamResultSection() {
       try {
         const r = await examApi.result(examId)
         if (!stopped) setResult(r)
-      } catch (e: any) {
-        if (!stopped) setError(e?.message ?? 'Failed to load result')
+      } catch (caughtError: unknown) {
+        const message = caughtError instanceof Error ? caughtError.message : 'Failed to load result'
+        if (!stopped) setError(message)
       }
     }
     void run()

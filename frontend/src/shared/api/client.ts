@@ -1,23 +1,61 @@
-export type APIError = {
-  message: string
+export type ApiResponse<T> = {
+  success: boolean
+  data: T | null
+  error: {
+    code: string
+    message: string
+  } | null
+}
+
+export class ApiError extends Error {
+  code: string
   status?: number
+
+  constructor(message: string, code = 'API_ERROR', status?: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.code = code
+    this.status = status
+  }
 }
 
 function baseURL() {
-  return (import.meta as any).env?.VITE_API_BASE_URL ?? 'http://localhost:8080'
+  return import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+}
+
+async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
+  const contentType = response.headers.get('content-type') ?? ''
+
+  if (!contentType.includes('application/json')) {
+    const message = await response.text().catch(() => response.statusText)
+    return {
+      success: response.ok,
+      data: null,
+      error: response.ok ? null : { code: 'HTTP_ERROR', message: message || response.statusText },
+    }
+  }
+
+  return (await response.json()) as ApiResponse<T>
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
   const headers = new Headers(init?.headers)
+
   headers.set('Accept', 'application/json')
   if (!headers.has('Content-Type') && init?.body) headers.set('Content-Type', 'application/json')
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const resp = await fetch(`${baseURL()}${path}`, { ...init, headers })
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '')
-    throw { message: text || resp.statusText, status: resp.status } satisfies APIError
+  const response = await fetch(`${baseURL()}${path}`, { ...init, headers })
+  const payload = await parseResponse<T>(response)
+
+  if (!response.ok || !payload.success || payload.error) {
+    throw new ApiError(payload.error?.message ?? response.statusText, payload.error?.code, response.status)
   }
-  return (await resp.json()) as T
+
+  if (payload.data === null) {
+    throw new ApiError('API response did not include data.', 'EMPTY_RESPONSE', response.status)
+  }
+
+  return payload.data
 }
