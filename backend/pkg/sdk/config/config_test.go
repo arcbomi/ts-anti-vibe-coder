@@ -26,8 +26,8 @@ func TestLoadReadsSharedEnvironment(t *testing.T) {
 	if cfg.ServiceName != "auth-service" {
 		t.Fatalf("ServiceName = %q, want auth-service", cfg.ServiceName)
 	}
-	if cfg.HTTPPort != "9090" || cfg.HTTPAddr() != ":9090" {
-		t.Fatalf("HTTPPort/HTTPAddr = %q/%q, want 9090/:9090", cfg.HTTPPort, cfg.HTTPAddr())
+	if cfg.HTTPPort != 9090 || cfg.HTTPAddr() != ":9090" {
+		t.Fatalf("HTTPPort/HTTPAddr = %d/%q, want 9090/:9090", cfg.HTTPPort, cfg.HTTPAddr())
 	}
 	if cfg.DatabaseURL == "" || cfg.PostgresDSN != cfg.DatabaseURL {
 		t.Fatalf("DatabaseURL/PostgresDSN alias not populated: %#v", cfg)
@@ -59,8 +59,8 @@ func TestLoadFromEnvAllowsServicePrefixedOverrides(t *testing.T) {
 	if cfg.ServiceName != "auth-service" {
 		t.Fatalf("ServiceName = %q, want auth-service", cfg.ServiceName)
 	}
-	if cfg.HTTPPort != "8081" {
-		t.Fatalf("HTTPPort = %q, want prefixed override 8081", cfg.HTTPPort)
+	if cfg.HTTPPort != 8081 {
+		t.Fatalf("HTTPPort = %d, want prefixed override 8081", cfg.HTTPPort)
 	}
 	if cfg.DatabaseURL != "postgres://service" {
 		t.Fatalf("DatabaseURL = %q, want prefixed override", cfg.DatabaseURL)

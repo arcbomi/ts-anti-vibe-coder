@@ -2,6 +2,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -9,11 +10,17 @@ import (
 )
 
 // Config contains reusable infrastructure settings used by backend services.
+//
+// The fields intentionally keep the original service-facing names (for example
+// HTTPPort as an int and PostgresDSN) while also exposing the newer shared SDK
+// names (for example AppEnv, DatabaseURL, RedisDB, and JWTSecret). Keeping both
+// sets avoids forcing every service to change at once and makes this file safe
+// to merge with branches that still use the earlier config contract.
 type Config struct {
 	AppEnv      string
 	ServiceName string
-	HTTPPort    string
 	LogLevel    string
+	HTTPPort    int
 
 	DatabaseURL string
 	PostgresDSN string // Deprecated alias for DatabaseURL.
@@ -34,26 +41,28 @@ type Config struct {
 
 	JWTSecret          string
 	AuthJWTHS256Secret string // Deprecated alias for JWTSecret.
-	ExamTimezone       string
-	ExamOpenDOW        string
-	ExamPassPercent    int
+
+	ExamTimezone    string
+	ExamOpenDOW     string
+	ExamPassPercent int
 }
 
 // HTTPAddr returns the address string expected by net/http servers.
 func (c Config) HTTPAddr() string {
-	port := strings.TrimSpace(c.HTTPPort)
-	if port == "" {
-		port = "8080"
+	if c.HTTPPort <= 0 {
+		return ":8080"
 	}
-	if strings.HasPrefix(port, ":") {
-		return port
-	}
-	return ":" + port
+	return fmt.Sprintf(":%d", c.HTTPPort)
 }
 
-// Load reads the common SDK environment variables without service-specific validation.
+// Load reads common SDK environment variables without requiring a caller to
+// provide a service name. Use LoadFromEnv when a service wants prefixed override
+// support and parse errors returned to the caller.
 func Load() Config {
-	cfg, _ := load("")
+	cfg, err := load(os.Getenv("SERVICE_NAME"), false)
+	if err != nil {
+		return Config{AppEnv: "development", ServiceName: "backend-service", HTTPPort: 8080}
+	}
 	return cfg
 }
 
@@ -62,17 +71,18 @@ func Load() Config {
 func LoadFromEnv(serviceName string) (Config, error) {
 	serviceName = strings.TrimSpace(serviceName)
 	if serviceName == "" {
-		serviceName = os.Getenv("SERVICE_NAME")
+		serviceName = strings.TrimSpace(os.Getenv("SERVICE_NAME"))
 	}
 	if serviceName == "" {
-		return Config{}, fmt.Errorf("service name is required")
+		return Config{}, errors.New("serviceName is required")
 	}
-	return load(serviceName)
+	return load(serviceName, true)
 }
 
-func load(serviceName string) (Config, error) {
+func load(serviceName string, allowServicePrefix bool) (Config, error) {
+	serviceName = strings.TrimSpace(serviceName)
 	prefix := ""
-	if serviceName != "" {
+	if allowServicePrefix && serviceName != "" {
 		prefix = toEnvPrefix(serviceName)
 	}
 	get := func(key string) string {
@@ -82,6 +92,18 @@ func load(serviceName string) (Config, error) {
 			}
 		}
 		return os.Getenv(key)
+	}
+
+	if serviceName == "" {
+		serviceName = firstNonEmpty(get("SERVICE_NAME"), "backend-service")
+	}
+
+	httpPort, err := parseInt(get("HTTP_PORT"), 0)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid HTTP_PORT: %w", err)
+	}
+	if httpPort == 0 {
+		httpPort = defaultPort(serviceName)
 	}
 
 	redisDB, err := parseInt(get("REDIS_DB"), 0)
@@ -97,17 +119,14 @@ func load(serviceName string) (Config, error) {
 		return Config{}, fmt.Errorf("invalid EXAM_PASS_PERCENT: %w", err)
 	}
 
-	if serviceName == "" {
-		serviceName = firstNonEmpty(get("SERVICE_NAME"), "backend-service")
-	}
 	databaseURL := firstNonEmpty(get("DATABASE_URL"), get("POSTGRES_DSN"))
 	jwtSecret := firstNonEmpty(get("JWT_SECRET"), get("AUTH_JWT_HS256_SECRET"))
 
 	cfg := Config{
 		AppEnv:      firstNonEmpty(get("APP_ENV"), "development"),
 		ServiceName: serviceName,
-		HTTPPort:    firstNonEmpty(get("HTTP_PORT"), defaultPort(serviceName)),
 		LogLevel:    firstNonEmpty(get("LOG_LEVEL"), "info"),
+		HTTPPort:    httpPort,
 
 		DatabaseURL: databaseURL,
 		PostgresDSN: databaseURL,
@@ -128,9 +147,10 @@ func load(serviceName string) (Config, error) {
 
 		JWTSecret:          jwtSecret,
 		AuthJWTHS256Secret: jwtSecret,
-		ExamTimezone:       firstNonEmpty(get("EXAM_TIMEZONE"), "Asia/Shanghai"),
-		ExamOpenDOW:        firstNonEmpty(get("EXAM_OPEN_DOW"), "Friday"),
-		ExamPassPercent:    passPercent,
+
+		ExamTimezone:    firstNonEmpty(get("EXAM_TIMEZONE"), "Asia/Shanghai"),
+		ExamOpenDOW:     firstNonEmpty(get("EXAM_OPEN_DOW"), "Friday"),
+		ExamPassPercent: passPercent,
 	}
 	return cfg, nil
 }
@@ -141,26 +161,26 @@ func toEnvPrefix(serviceName string) string {
 	return s + "_"
 }
 
-func defaultPort(serviceName string) string {
+func defaultPort(serviceName string) int {
 	switch serviceName {
 	case "api-gateway":
-		return "8080"
+		return 8080
 	case "auth-service":
-		return "8081"
+		return 8081
 	case "gitlab-reader-service":
-		return "8082"
+		return 8082
 	case "ai-analysis-service":
-		return "8083"
+		return 8083
 	case "question-service":
-		return "8084"
+		return 8084
 	case "exam-service":
-		return "8085"
+		return 8085
 	case "scheduler-service":
-		return "8086"
+		return 8086
 	case "worker-service":
-		return "8087"
+		return 8087
 	default:
-		return "8080"
+		return 8080
 	}
 }
 
@@ -168,7 +188,11 @@ func parseInt(s string, fallback int) (int, error) {
 	if strings.TrimSpace(s) == "" {
 		return fallback, nil
 	}
-	return strconv.Atoi(s)
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, err
+	}
+	return v, nil
 }
 
 func firstNonEmpty(values ...string) string {
