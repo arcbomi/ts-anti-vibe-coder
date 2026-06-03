@@ -24,7 +24,7 @@ type AnalysisJobMessage struct {
 	RepositoryID  string `json:"repository_id"`
 	GitLabRepoURL string `json:"gitlab_repo_url"`
 	Branch        string `json:"branch"`
-	RetryCount    int    `json:"retry_count,omitempty"`
+	Attempt       int    `json:"attempt"`
 }
 
 func (m *AnalysisJobMessage) Validate() error {
@@ -33,6 +33,9 @@ func (m *AnalysisJobMessage) Validate() error {
 	}
 	if m.Branch == "" {
 		m.Branch = "main"
+	}
+	if m.Attempt <= 0 {
+		m.Attempt = 1
 	}
 	return nil
 }
@@ -47,7 +50,14 @@ type Producer struct {
 }
 
 func NewProducer(redisClient *redis.Client) *Producer {
-	return &Producer{redis: redisClient, queue: analysisQueueName}
+	return NewProducerWithQueue(redisClient, analysisQueueName)
+}
+
+func NewProducerWithQueue(redisClient *redis.Client, queueName string) *Producer {
+	if queueName == "" {
+		queueName = analysisQueueName
+	}
+	return &Producer{redis: redisClient, queue: queueName}
 }
 
 func (p *Producer) PublishAnalysisJob(ctx context.Context, msg AnalysisJobMessage) error {
@@ -74,11 +84,24 @@ type Consumer struct {
 }
 
 func NewConsumer(redisClient *redis.Client) *Consumer {
+	return NewConsumerWithOptions(redisClient, analysisQueueName, analysisDeadLetterName, defaultMaxRetryAttempts)
+}
+
+func NewConsumerWithOptions(redisClient *redis.Client, queueName string, deadLetterName string, maxAttempts int) *Consumer {
+	if queueName == "" {
+		queueName = analysisQueueName
+	}
+	if deadLetterName == "" {
+		deadLetterName = analysisDeadLetterName
+	}
+	if maxAttempts <= 0 {
+		maxAttempts = defaultMaxRetryAttempts
+	}
 	return &Consumer{
 		redis:      redisClient,
-		queue:      analysisQueueName,
-		deadLetter: analysisDeadLetterName,
-		maxRetries: defaultMaxRetryAttempts,
+		queue:      queueName,
+		deadLetter: deadLetterName,
+		maxRetries: maxAttempts,
 		blockTime:  5 * time.Second,
 	}
 }
@@ -124,12 +147,12 @@ func (c *Consumer) handlePayload(ctx context.Context, payload string, handler Ha
 	if err := handler(ctx, msg); err == nil {
 		return nil
 	}
-	msg.RetryCount++
+	msg.Attempt++
 	b, marshalErr := json.Marshal(msg)
 	if marshalErr != nil {
 		return marshalErr
 	}
-	if msg.RetryCount > c.maxRetries {
+	if msg.Attempt > c.maxRetries {
 		return c.redis.LPush(ctx, c.deadLetter, b).Err()
 	}
 	return c.redis.LPush(ctx, c.queue, b).Err()
@@ -151,8 +174,8 @@ type Client struct {
 	producer *Producer
 }
 
-func NewClient(rc RedisConfig, _ string) *Client {
-	return &Client{producer: NewProducer(NewRedisClient(rc))}
+func NewClient(rc RedisConfig, namespace string) *Client {
+	return &Client{producer: NewProducerWithQueue(NewRedisClient(rc), namespace)}
 }
 
 func (c *Client) Close() error {
