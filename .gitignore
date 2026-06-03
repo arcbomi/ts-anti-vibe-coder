@@ -1,0 +1,25 @@
+### OS / Editor
+.DS_Store
+.idea/
+.vscode/
+
+### Env
+.env
+.env.*
+!.env.example
+
+### Node
+node_modules/
+dist/
+build/
+.vite/
+
+### Go
+bin/
+*.exe
+*.out
+*.test
+*.log
+
+### Coverage
+coverage/
