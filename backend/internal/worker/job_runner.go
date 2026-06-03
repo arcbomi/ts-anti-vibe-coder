@@ -3,11 +3,9 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
-	"strings"
-	"unicode"
 
+	"backend/internal/analysis"
 	"backend/pkg/sdk/aiclient"
 	"backend/pkg/sdk/gitlabclient"
 )
@@ -43,15 +41,15 @@ func (r *JobRunner) Run(ctx context.Context, msg AnalysisJobMessage) error {
 	if err != nil {
 		return err
 	}
-	index, err := r.buildCodeIndex(ctx, msg, files)
+	input, err := r.buildRepositoryInput(ctx, msg, files)
 	if err != nil {
 		return err
 	}
-	analysis, err := r.analyzeCode(ctx, msg, index)
+	analysisResult, err := r.analyzeCode(ctx, msg, input)
 	if err != nil {
 		return err
 	}
-	questions, err := r.generateQuestions(ctx, msg, analysis)
+	questions, err := r.generateQuestions(ctx, msg, analysisResult)
 	if err != nil {
 		return err
 	}
@@ -111,56 +109,47 @@ func (r *JobRunner) readRepository(ctx context.Context, msg AnalysisJobMessage) 
 	return files, nil
 }
 
-type CodeIndex struct {
-	Files []FileSummary `json:"files"`
-}
-type FileSummary struct {
-	Path    string `json:"path"`
-	Size    int    `json:"size"`
-	Summary string `json:"summary"`
-	Excerpt string `json:"excerpt"`
-}
-
-func (r *JobRunner) buildCodeIndex(ctx context.Context, msg AnalysisJobMessage, files []RepositoryFile) (CodeIndex, error) {
+func (r *JobRunner) buildRepositoryInput(ctx context.Context, msg AnalysisJobMessage, files []RepositoryFile) (analysis.RepositoryInput, error) {
 	if err := r.updateStatus(ctx, msg, StatusIndexingCode); err != nil {
-		return CodeIndex{}, err
+		return analysis.RepositoryInput{}, err
 	}
-	index := CodeIndex{Files: make([]FileSummary, 0, len(files))}
+	input := analysis.RepositoryInput{
+		UserID:         msg.UserID,
+		RepositoryID:   msg.RepositoryID,
+		GitLabRepoURL:  msg.GitLabRepoURL,
+		Branch:         msg.Branch,
+		RepositoryTree: make([]string, 0, len(files)),
+		Files:          make([]analysis.RepositoryFile, 0, len(files)),
+	}
 	for _, f := range files {
-		excerpt := f.Content
-		if len(excerpt) > 4000 {
-			excerpt = excerpt[:4000]
-		}
-		index.Files = append(index.Files, FileSummary{Path: f.Path, Size: f.Size, Summary: summarizeFile(f), Excerpt: excerpt})
+		input.RepositoryTree = append(input.RepositoryTree, f.Path)
+		input.Files = append(input.Files, analysis.RepositoryFile{Path: f.Path, Size: f.Size, Content: f.Content})
 	}
-	r.logJob(msg, StatusIndexingCode).Info("code index built", "file_count", len(index.Files))
-	return index, nil
+	r.logJob(msg, StatusIndexingCode).Info("repository input built", "file_count", len(input.Files))
+	return input, nil
 }
 
-func (r *JobRunner) analyzeCode(ctx context.Context, msg AnalysisJobMessage, index CodeIndex) (json.RawMessage, error) {
+func (r *JobRunner) analyzeCode(ctx context.Context, msg AnalysisJobMessage, input analysis.RepositoryInput) (json.RawMessage, error) {
 	if err := r.updateStatus(ctx, msg, StatusAnalyzingCode); err != nil {
 		return nil, err
 	}
-	payload, _ := json.Marshal(index)
-	prompt := "Analyze this GitLab repository code index. Return JSON with repository purpose, key modules, data flow, and exam-relevant concepts.\n" + string(payload)
-	analysis, err := r.ai.GenerateJSON(ctx, prompt)
+	analysisResult, err := analysis.NewService(r.ai).AnalyzeRepository(ctx, input)
 	if err != nil {
 		return nil, ClassifyExternalError(ErrCodeAITimeout, err)
 	}
 	r.logJob(msg, StatusAnalyzingCode).Info("repository analyzed")
-	return analysis, nil
+	return analysisResult, nil
 }
 
-func (r *JobRunner) generateQuestions(ctx context.Context, msg AnalysisJobMessage, analysis json.RawMessage) ([]GeneratedQuestion, error) {
+func (r *JobRunner) generateQuestions(ctx context.Context, msg AnalysisJobMessage, analysisResult json.RawMessage) ([]GeneratedQuestion, error) {
 	if err := r.updateStatus(ctx, msg, StatusGeneratingQuestions); err != nil {
 		return nil, err
 	}
-	prompt := `Generate exactly 20 English-only multiple-choice questions for an offline codebase understanding exam from this repository analysis. Return JSON object {"questions":[...]} only. Each question must have question, option_a, option_b, option_c, option_d, correct_option (A/B/C/D), explanation, difficulty, source_file_path. There must be exactly one correct option.` + "\nAnalysis:\n" + string(analysis)
-	raw, err := r.ai.GenerateJSON(ctx, prompt)
+	raw, err := analysis.NewService(r.ai).GenerateQuestionJSON(ctx, analysisResult)
 	if err != nil {
 		return nil, ClassifyExternalError(ErrCodeAITimeout, err)
 	}
-	questions, err := parseAndValidateQuestions(raw)
+	questions, err := analysis.ParseAndValidateQuestions(raw)
 	if err != nil {
 		return nil, NewPermanentError(ErrCodeAIOutputInvalid, err.Error(), err)
 	}
@@ -193,44 +182,4 @@ func (r *JobRunner) logJob(msg AnalysisJobMessage, status string) *slog.Logger {
 		log = slog.Default()
 	}
 	return log.With("job_id", msg.JobID, "user_id", msg.UserID, "repository_id", msg.RepositoryID, "status", status, "attempt", msg.Attempt)
-}
-
-func summarizeFile(f RepositoryFile) string {
-	lines := strings.Count(f.Content, "\n") + 1
-	return fmt.Sprintf("%s has %d bytes and approximately %d lines", f.Path, f.Size, lines)
-}
-
-func parseAndValidateQuestions(raw json.RawMessage) ([]GeneratedQuestion, error) {
-	var envelope struct {
-		Questions []GeneratedQuestion `json:"questions"`
-	}
-	if err := json.Unmarshal(raw, &envelope); err != nil {
-		return nil, err
-	}
-	if len(envelope.Questions) != 20 {
-		return nil, fmt.Errorf("AI output must include exactly 20 questions, got %d", len(envelope.Questions))
-	}
-	for i, q := range envelope.Questions {
-		if strings.TrimSpace(q.Question) == "" || strings.TrimSpace(q.OptionA) == "" || strings.TrimSpace(q.OptionB) == "" || strings.TrimSpace(q.OptionC) == "" || strings.TrimSpace(q.OptionD) == "" || strings.TrimSpace(q.Explanation) == "" || strings.TrimSpace(q.SourceFilePath) == "" {
-			return nil, fmt.Errorf("question %d is missing required fields", i+1)
-		}
-		q.CorrectOption = strings.ToUpper(strings.TrimSpace(q.CorrectOption))
-		if q.CorrectOption != "A" && q.CorrectOption != "B" && q.CorrectOption != "C" && q.CorrectOption != "D" {
-			return nil, fmt.Errorf("question %d correct_option must be A, B, C, or D", i+1)
-		}
-		if containsNonEnglishText(q.Question + q.OptionA + q.OptionB + q.OptionC + q.OptionD + q.Explanation) {
-			return nil, fmt.Errorf("question %d contains non-English text", i+1)
-		}
-		envelope.Questions[i].CorrectOption = q.CorrectOption
-	}
-	return envelope.Questions, nil
-}
-
-func containsNonEnglishText(s string) bool {
-	for _, r := range s {
-		if r > unicode.MaxASCII && (unicode.IsLetter(r) || unicode.Is(unicode.Han, r) || unicode.Is(unicode.Hiragana, r) || unicode.Is(unicode.Katakana, r) || unicode.Is(unicode.Hangul, r)) {
-			return true
-		}
-	}
-	return false
 }
