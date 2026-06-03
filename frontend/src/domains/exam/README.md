@@ -1,11 +1,16 @@
 # Exam Domain
 
-This domain handles taking an exam and viewing results.
+This domain handles the exam-taking flow and exam result display.
 
-Rules:
-- English-only A/B/C/D questions
-- Backend grading is the source of truth
-- Frontend must not know correct answers during the exam
-- Offline exam every Friday (policy enforced by backend)
+Responsibilities:
+- Load exam questions.
+- Show English-only A/B/C/D questions.
+- Store selected answers.
+- Submit answers to backend.
+- Display backend-graded result.
 
-This domain should not depend on auth, repository, analysis, or question domains directly.
+Important rules:
+- The frontend must not receive correct answers during the exam.
+- The frontend must not calculate pass/fail locally.
+- Backend grading is the source of truth.
+- This domain should not depend on repository, analysis, or auth domain internals.
