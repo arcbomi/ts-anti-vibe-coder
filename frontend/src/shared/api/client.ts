@@ -1,87 +1,164 @@
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+
+export type ApiErrorBody = {
+  code: string
+  message: string
+  details?: Record<string, unknown>
+}
+
 export type ApiResponse<T> = {
   success: boolean
   data: T | null
-  error: {
-    code: string
-    message: string
-  } | null
+  error: ApiErrorBody | null
 }
 
 export class ApiError extends Error {
   code: string
   status?: number
+  details?: Record<string, unknown>
 
-  constructor(message: string, code = 'API_ERROR', status?: number) {
+  constructor(message: string, code = 'API_ERROR', status?: number, details?: Record<string, unknown>) {
     super(message)
     this.name = 'ApiError'
     this.code = code
     this.status = status
+    this.details = details
   }
 }
 
-function baseURL() {
-  return import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+type RequestOptions = Omit<RequestInit, 'body' | 'method'> & {
+  body?: unknown
+  method?: string
 }
 
-async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
+function getAccessToken(): string | null {
+  if (typeof window === 'undefined') return null
+
+  return localStorage.getItem('auth_token') ?? localStorage.getItem('access_token')
+}
+
+function buildUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path
+
+  const baseUrl = API_BASE_URL.replace(/\/$/, '')
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+
+  return `${baseUrl}${normalizedPath}`
+}
+
+function buildHeaders(options: RequestOptions): Headers {
+  const headers = new Headers(options.headers)
+  const token = getAccessToken()
+
+  headers.set('Accept', 'application/json')
+
+  if (options.body !== undefined && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  return headers
+}
+
+function serializeBody(body: unknown): BodyInit | undefined {
+  if (body === undefined || body === null) return undefined
+  if (body instanceof FormData) return body
+  if (typeof body === 'string') return body
+  if (body instanceof Blob) return body
+  if (body instanceof ArrayBuffer) return body
+  if (body instanceof URLSearchParams) return body
+
+  return JSON.stringify(body)
+}
+
+async function parseJsonResponse<T>(response: Response): Promise<ApiResponse<T>> {
+  if (response.status === 204) {
+    return {
+      success: response.ok,
+      data: null,
+      error: null,
+    }
+  }
+
   const contentType = response.headers.get('content-type') ?? ''
 
   if (!contentType.includes('application/json')) {
     const message = await response.text().catch(() => response.statusText)
+
     return {
-      success: response.ok,
+      success: false,
       data: null,
-      error: response.ok ? null : { code: 'HTTP_ERROR', message: message || response.statusText },
+      error: {
+        code: response.ok ? 'INVALID_JSON_RESPONSE' : 'HTTP_ERROR',
+        message: message || response.statusText || 'Unexpected non-JSON API response.',
+      },
     }
   }
 
-  const payload = (await response.json()) as ApiResponse<T> | T
-
-  if (
-    typeof payload === 'object' &&
-    payload !== null &&
-    'success' in payload &&
-    'data' in payload &&
-    'error' in payload
-  ) {
-    return payload as ApiResponse<T>
-  }
-
-  return {
-    success: response.ok,
-    data: payload as T,
-    error: response.ok ? null : { code: 'HTTP_ERROR', message: response.statusText },
-  }
+  return (await response.json()) as ApiResponse<T>
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
-  const headers = new Headers(init?.headers)
-
-  headers.set('Accept', 'application/json')
-  if (!headers.has('Content-Type') && init?.body) headers.set('Content-Type', 'application/json')
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-
-  const response = await fetch(`${baseURL()}${path}`, { ...init, headers })
-  const payload = await parseResponse<T>(response)
-
+function assertSuccessfulResponse<T>(payload: ApiResponse<T>, response: Response): T {
   if (!response.ok || !payload.success || payload.error) {
-    throw new ApiError(payload.error?.message ?? response.statusText, payload.error?.code, response.status)
+    throw new ApiError(
+      payload.error?.message ?? response.statusText ?? 'API request failed.',
+      payload.error?.code ?? 'API_ERROR',
+      response.status,
+      payload.error?.details,
+    )
   }
 
-  if (payload.data === null) {
-    throw new ApiError('API response did not include data.', 'EMPTY_RESPONSE', response.status)
-  }
-
-  return payload.data
+  return payload.data as T
 }
 
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const headers = buildHeaders(options)
+
+  try {
+    const response = await fetch(buildUrl(path), {
+      ...options,
+      headers,
+      body: serializeBody(options.body),
+    })
+
+    const payload = await parseJsonResponse<T>(response)
+
+    return assertSuccessfulResponse(payload, response)
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+
+    throw new ApiError(
+      error instanceof Error ? error.message : 'Network request failed.',
+      'NETWORK_ERROR',
+    )
+  }
+}
+
+export function get<T>(path: string, options?: RequestOptions): Promise<T> {
+  return request<T>(path, { ...options, method: 'GET' })
+}
+
+export function post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+  return request<T>(path, { ...options, method: 'POST', body })
+}
+
+export function put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+  return request<T>(path, { ...options, method: 'PUT', body })
+}
+
+export function del<T>(path: string, options?: RequestOptions): Promise<T> {
+  return request<T>(path, { ...options, method: 'DELETE' })
+}
+
+export const apiFetch = request
 
 export const apiClient = {
-  get: <T>(path: string, init?: RequestInit) => apiFetch<T>(path, { ...init, method: 'GET' }),
-  post: <T>(path: string, body?: unknown, init?: RequestInit) =>
-    apiFetch<T>(path, { ...init, method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }),
-  put: <T>(path: string, body?: unknown, init?: RequestInit) =>
-    apiFetch<T>(path, { ...init, method: 'PUT', body: body === undefined ? undefined : JSON.stringify(body) }),
-  delete: <T>(path: string, init?: RequestInit) => apiFetch<T>(path, { ...init, method: 'DELETE' }),
+  get,
+  post,
+  put,
+  delete: del,
+  del,
 }
