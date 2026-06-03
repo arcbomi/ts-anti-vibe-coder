@@ -14,7 +14,7 @@ One-sentence description:
 5. Backend checks bot access (user does **not** provide a personal GitLab token).
 6. If access is valid, backend reads the repository and runs async AI analysis via a queue.
 7. AI generates 20 **English-only** multiple-choice questions (A/B/C/D).
-8. User goes to an offline exam (Friday) and answers questions.
+8. User goes to an offline exam (Saturday) and answers questions.
 9. Backend grades and decides pass/fail (backend is the source of truth).
 
 ## Important Product Rules
