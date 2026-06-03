@@ -1,3 +1,5 @@
+import { useParams } from 'react-router-dom'
+
 import { AnalysisProgress } from '@/domains/analysis/components/AnalysisProgress'
 import { useAnalysisJob } from '@/domains/analysis/hooks/useAnalysisJob'
 import { ErrorState } from '@/shared/components/ErrorState'
@@ -7,7 +9,9 @@ type AnalysisProgressSectionProps = {
   jobId?: string
 }
 
-export function AnalysisProgressSection({ jobId }: AnalysisProgressSectionProps) {
+export function AnalysisProgressSection({ jobId: jobIdProp }: AnalysisProgressSectionProps) {
+  const params = useParams()
+  const jobId = jobIdProp ?? params.jobId
   const { job, isLoading, error } = useAnalysisJob(jobId)
 
   if (error && !job) return <ErrorState message={error} />
