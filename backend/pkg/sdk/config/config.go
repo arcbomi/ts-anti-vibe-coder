@@ -67,7 +67,7 @@ func LoadFromEnv(serviceName string) (Config, error) {
     return Config{}, fmt.Errorf("invalid AI_TIMEOUT_SECONDS: %w", err)
   }
 
-  passPercent, err := parseInt(get("EXAM_PASS_PERCENT"), 80)
+  passPercent, err := parseInt(get("EXAM_PASS_PERCENT"), 70)
   if err != nil {
     return Config{}, fmt.Errorf("invalid EXAM_PASS_PERCENT: %w", err)
   }
