@@ -1,12 +1,25 @@
 import { createStore } from 'zustand/vanilla'
-import type { Question } from '@/domains/question/types/question.types'
 
-type State = {
-  questions: Question[]
-  setQuestions: (q: Question[]) => void
+import type { ExamQuestion, OptionKey } from '@/domains/question/types/question.types'
+
+export interface QuestionState {
+  questions: ExamQuestion[]
+  selectedAnswers: Record<string, OptionKey>
+  setQuestions: (questions: ExamQuestion[]) => void
+  selectAnswer: (questionId: string, option: OptionKey) => void
+  clearAnswers: () => void
 }
 
-export const questionStore = createStore<State>((set) => ({
+export const questionStore = createStore<QuestionState>((set) => ({
   questions: [],
+  selectedAnswers: {},
   setQuestions: (questions) => set({ questions }),
+  selectAnswer: (questionId, option) =>
+    set((state) => ({
+      selectedAnswers: {
+        ...state.selectedAnswers,
+        [questionId]: option,
+      },
+    })),
+  clearAnswers: () => set({ selectedAnswers: {} }),
 }))

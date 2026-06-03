@@ -1,5 +1,9 @@
-import { OptionButton } from '@/domains/question/components/OptionButton'
+import { Button } from '@/shared/components/Button'
 
 export function ExamOption({ label, onSelect }: { label: string; onSelect: () => void }) {
-  return <OptionButton label={label} onClick={onSelect} />
+  return (
+    <Button type="button" onClick={onSelect}>
+      {label}
+    </Button>
+  )
 }

@@ -1,13 +1,39 @@
-import { useQuestions } from '@/domains/question/hooks/useQuestions'
 import { QuestionCard } from '@/domains/question/components/QuestionCard'
+import type { ExamQuestion, OptionKey } from '@/domains/question/types/question.types'
 
-export function QuestionListSection({ onAnswer }: { onAnswer: (id: string, opt: 'A' | 'B' | 'C' | 'D') => void }) {
-  const { questions } = useQuestions()
+export interface QuestionListSectionProps {
+  questions: ExamQuestion[]
+  selectedAnswers: Record<string, OptionKey>
+  disabled?: boolean
+  onSelectAnswer: (questionId: string, option: OptionKey) => void
+}
+
+export function QuestionListSection({
+  questions,
+  selectedAnswers,
+  disabled = false,
+  onSelectAnswer,
+}: QuestionListSectionProps) {
+  if (questions.length === 0) {
+    return (
+      <section aria-label="Questions" style={{ padding: '2rem 0' }}>
+        <p>No questions are available yet.</p>
+      </section>
+    )
+  }
+
   return (
-    <div>
-      {questions.map((q) => (
-        <QuestionCard key={q.id} q={q} onSelect={(opt) => onAnswer(q.id, opt)} />
+    <section aria-label="Questions" style={{ display: 'grid', gap: '1rem' }}>
+      {questions.map((question, index) => (
+        <QuestionCard
+          key={question.id}
+          question={question}
+          selectedOption={selectedAnswers[question.id]}
+          disabled={disabled}
+          questionIndex={index}
+          onSelect={onSelectAnswer}
+        />
       ))}
-    </div>
+    </section>
   )
 }
