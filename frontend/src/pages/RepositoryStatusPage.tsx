@@ -1,10 +1,8 @@
-import { AuthHeaderSection } from '@/domains/auth/pageSection/AuthHeaderSection'
 import { RepositoryStatusSection } from '@/domains/repository/pageSection/RepositoryStatusSection'
 
-export function DashboardPage() {
+export function RepositoryStatusPage() {
   return (
     <main>
-      <AuthHeaderSection />
       <RepositoryStatusSection />
     </main>
   )

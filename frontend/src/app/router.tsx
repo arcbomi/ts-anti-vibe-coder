@@ -1,30 +1,40 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { createBrowserRouter } from 'react-router-dom'
 
-import { LoginPage } from '@/pages/LoginPage'
-import { DashboardPage } from '@/pages/DashboardPage'
-import { RepositoryPage } from '@/pages/RepositoryPage'
 import { AnalysisPage } from '@/pages/AnalysisPage'
+import { DashboardPage } from '@/pages/DashboardPage'
 import { ExamPage } from '@/pages/ExamPage'
-import { ResultPage } from '@/pages/ResultPage'
+import { ExamResultPage } from '@/pages/ExamResultPage'
+import { LoginPage } from '@/pages/LoginPage'
+import { RepositoryConnectPage } from '@/pages/RepositoryConnectPage'
+import { RepositoryStatusPage } from '@/pages/RepositoryStatusPage'
 
-export function AppRouter() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-
-        <Route path="/repository/connect" element={<RepositoryPage mode="connect" />} />
-        <Route path="/repository/status" element={<RepositoryPage mode="status" />} />
-
-        <Route path="/analysis/:jobId" element={<AnalysisPage />} />
-
-        <Route path="/exam/:examId" element={<ExamPage />} />
-        <Route path="/exam/:examId/result" element={<ResultPage />} />
-
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </BrowserRouter>
-  )
-}
+export const router = createBrowserRouter([
+  {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
+    path: '/dashboard',
+    element: <DashboardPage />,
+  },
+  {
+    path: '/repository/connect',
+    element: <RepositoryConnectPage />,
+  },
+  {
+    path: '/repository/status',
+    element: <RepositoryStatusPage />,
+  },
+  {
+    path: '/analysis/:jobId',
+    element: <AnalysisPage />,
+  },
+  {
+    path: '/exam/:examId',
+    element: <ExamPage />,
+  },
+  {
+    path: '/exam/:examId/result',
+    element: <ExamResultPage />,
+  },
+])
