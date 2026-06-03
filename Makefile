@@ -1,4 +1,4 @@
-.PHONY: infra-up infra-down backend-test backend-run-api backend-run-auth backend-run-worker frontend-install frontend-dev frontend-build
+.PHONY: infra-up infra-down backend-test smoke-test backend-run-api backend-run-auth backend-run-worker frontend-install frontend-dev frontend-build
 
 infra-up:
 	docker compose up -d
@@ -8,6 +8,9 @@ infra-down:
 
 backend-test:
 	cd backend && go test ./...
+
+smoke-test:
+	./scripts/run-smoke-tests.sh
 
 backend-run-api:
 	cd backend && go run ./cmd/api-gateway
