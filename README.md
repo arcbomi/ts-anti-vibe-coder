@@ -1,131 +1,83 @@
+# GitLab Codebase Understanding Exam Platform
 
-# Codebase Understanding Exam Platform
+The GitLab Codebase Understanding Exam Platform verifies whether a user truly understands a GitLab repository instead of only being able to produce code with AI assistance.
 
-One-sentence description:
+The platform does not ask users to upload code manually and does not ask for a personal GitLab token. Instead, the user adds the platform's **server GitLab userbot** as a collaborator to their GitLab repository, then clicks **"I already added the bot"**. The backend checks bot access, reads the repository automatically, sends the codebase to AI analysis, and creates an offline exam.
 
-> A GitLab-based codebase understanding exam platform where users add a server GitLab bot as a repository collaborator, the system automatically analyzes the code with AI, generates 20 English-only functional code questions, and verifies offline whether the user truly understands the project.
+## Product Flow
 
-## Core Flow
-
-1. User logs in.
+1. User logs in to the platform.
 2. User enters a GitLab repository URL.
-3. Platform instructs the user to add our GitLab server bot as a collaborator.
-4. User clicks: “I already added the bot.”
-5. Backend checks bot access (user does **not** provide a personal GitLab token).
-6. If access is valid, backend reads the repository and runs async AI analysis via a queue.
-7. AI generates 20 **English-only** multiple-choice questions (A/B/C/D).
-8. User goes to an offline exam (Saturday) and answers questions.
-9. Backend grades and decides pass/fail (backend is the source of truth).
+3. Platform instructs the user to add the GitLab server userbot as a repository collaborator.
+4. User adds the bot in GitLab.
+5. User clicks **"I already added the bot"**.
+6. Backend checks whether the bot can access the repository.
+7. Backend automatically reads the repository after access is confirmed.
+8. AI analyzes the repository code.
+9. AI generates **20 English-only A/B/C/D questions**.
+10. User attends the offline Friday exam at the assigned location.
+11. User answers the questions offline.
+12. Backend grades the exam.
+13. If the user passes, the system marks that the user understands the repository code.
 
 ## Important Product Rules
 
-1. User does not upload code manually.
-2. User does not provide GitLab personal token.
-3. User adds server GitLab bot to repo collaboration.
-4. User must click “I already added the bot.”
-5. System checks bot access before reading.
-6. AI questions are English only.
-7. No admin question review.
-8. Questions must test actual program understanding.
-9. Backend grading is the source of truth.
-10. Frontend must not know correct answers during exam.
+- Users do not upload code manually.
+- Users do not provide a personal GitLab token.
+- Users add the platform's GitLab server userbot as a repository collaborator.
+- Users must click **"I already added the bot"** before the backend checks access.
+- The system reads the repository automatically only after bot access is confirmed.
+- AI generates exactly **20 English-only A/B/C/D questions**.
+- There is **no admin review** of questions; AI-generated questions are used directly.
+- The offline exam happens on Friday at a specific location.
+- Backend grading is the source of truth.
+- The frontend must never receive correct answers during the exam.
 
-## Monorepo Layout
+## Backend Architecture
 
-- `backend/`: Go microservices + shared SDK
-- `frontend/`: React + Vite + TypeScript (domain-separated)
+The backend uses **Go microservices**. Each service is a separate Go program under `backend/cmd`:
 
-## Backend Architecture (Go Microservices)
-
-Backend is built as multiple independently runnable programs:
-
-```
+```txt
 backend/
-	cmd/
-		api-gateway/
-		auth-service/
-		gitlab-reader-service/
-		ai-analysis-service/
-		question-service/
-		exam-service/
-		scheduler-service/
-		worker-service/
-
-	internal/
-		auth/
-		gitlab/
-		analysis/
-		question/
-		exam/
-		scheduler/
-		worker/
-
-	pkg/
-		sdk/
-			config/
-			logger/
-			errors/
-			httpclient/
-			middleware/
-			queue/
-			database/
-			gitlabclient/
-			aiclient/
-			examclient/
-			questionclient/
+  cmd/
+    api-gateway/
+    auth-service/
+    gitlab-reader-service/
+    ai-analysis-service/
+    question-service/
+    exam-service/
+    worker-service/
 ```
 
-### Centralized SDK Requirement
+All backend services must share common infrastructure through the centralized SDK under `backend/pkg/sdk`. Shared logic such as configuration, logging, database access, queues, middleware, HTTP clients, GitLab client code, and AI client code must live in the SDK instead of being duplicated inside services.
 
-All microservices share one centralized SDK under `backend/pkg/sdk/`.
+The auth service should later support Tomorrow School account login or Tomorrow School SSO.
 
-- Shared logic only
-- No duplicated cross-cutting code inside services
+## Frontend Architecture
 
-### Auth Service (Future Requirement)
+The frontend uses **React + Vite + TypeScript** with a domain-separated architecture:
 
-In the future, `auth-service` should support Tomorrow School's own account system.
-The platform should be able to authenticate users with Tomorrow School internal accounts.
-
-## Frontend Architecture (React + Vite + TypeScript)
-
-Frontend is domain-separated. Each domain owns its own `api/`, `hooks/`, `store/`, `components/`, `pageSection/`, `types/`, and `README.md`.
-
-Pages under `frontend/src/pages/` only compose page sections; they should not contain heavy business logic.
-
-## Local Development (MVP)
-
-### 1) Start Infra
-
-This repo uses Postgres + Redis for local development.
-
-```bash
-docker compose up -d
+```txt
+frontend/
+  src/
+    app/
+    pages/
+    domains/
+      auth/
+      repository/
+      analysis/
+      question/
+      exam/
+    shared/
 ```
 
-### 2) Backend
+Each domain owns its own API functions, hooks, store, components, page sections, types, and README. Pages under `src/pages/` should only compose domain page sections and must not contain heavy business logic.
 
-```bash
-cd backend
-go test ./...
-```
+## Documentation
 
-Start services (ports are configured by env vars):
-
-```bash
-go run ./cmd/auth-service
-go run ./cmd/api-gateway
-go run ./cmd/worker-service
-```
-
-### 3) Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## Configuration
-
-Copy `.env.example` and fill values for local runs.
+- [Product requirements](docs/product-requirements.md)
+- [API contract](docs/api-contract.md)
+- [Backend architecture](docs/backend-architecture.md)
+- [Frontend architecture](docs/frontend-architecture.md)
+- [AI question rules](docs/ai-question-rules.md)
+- [Deployment](docs/deployment.md)
