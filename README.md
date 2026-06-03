@@ -81,3 +81,111 @@ Each domain owns its own API functions, hooks, store, components, page sections,
 - [Frontend architecture](docs/frontend-architecture.md)
 - [AI question rules](docs/ai-question-rules.md)
 - [Deployment](docs/deployment.md)
+
+## Running the Whole Platform Locally
+
+### Prerequisites
+
+- Docker and Docker Compose v2 for the one-command development stack.
+- Go 1.24+ if you want to run backend services directly on your host.
+- Node.js 24+ and npm if you want to run the frontend directly on your host.
+
+### Environment setup
+
+Create a local environment file from the checked-in example:
+
+```bash
+cp .env.example .env
+```
+
+The defaults are enough to boot the local stack. Replace `GITLAB_BOT_TOKEN`, `GITLAB_BOT_USERNAME`, `AI_API_KEY`, `AUTH_JWT_HS256_SECRET`, and `INTERNAL_SERVICE_TOKEN` before running a real GitLab/AI-backed workflow or deploying the platform.
+
+### One-command local development
+
+Start PostgreSQL, Redis, all backend services, the worker, database migrations, and the Vite frontend with one command:
+
+```bash
+make dev
+```
+
+This command calls `./scripts/dev-up.sh`, creates `.env` from `.env.example` when needed, and runs `docker compose up --build`. The frontend is available at <http://localhost:5173>. Backend health checks are exposed at:
+
+| Component | URL |
+| --- | --- |
+| API Gateway | <http://localhost:8080/healthz> |
+| Auth Service | <http://localhost:8081/healthz> |
+| GitLab Reader Service | <http://localhost:8082/healthz> |
+| AI Analysis Service | <http://localhost:8083/healthz> |
+| Question Service | <http://localhost:8084/healthz> |
+| Exam Service | <http://localhost:8085/healthz> |
+| Scheduler Service | <http://localhost:8086/healthz> |
+| Worker Service | <http://localhost:8087/healthz> |
+
+Stop the local stack with:
+
+```bash
+make dev-down
+```
+
+### Database migrations
+
+Run all pending database migrations with one command:
+
+```bash
+make migrate
+```
+
+The command uses `DATABASE_URL` from `.env` and runs `go run ./cmd/migrate up` from the backend. Migration files live in `backend/migrations`, and applied versions are tracked in the `schema_migrations` table.
+
+### Running services directly on your host
+
+When PostgreSQL and Redis are already running, you can run individual components without Docker:
+
+```bash
+make backend-run-api
+make backend-run-auth
+make backend-run-gitlab
+make backend-run-analysis
+make backend-run-question
+make backend-run-exam
+make backend-run-scheduler
+make backend-run-worker
+make frontend-dev
+```
+
+You can also run any backend service by name:
+
+```bash
+./scripts/run-backend.sh auth-service
+./scripts/run-backend.sh worker-service
+```
+
+### Tests and checks
+
+Run backend unit tests:
+
+```bash
+make backend-test
+```
+
+Run backend integration tests with one command:
+
+```bash
+make test-integration
+```
+
+Run smoke tests with one command after `make dev` is healthy:
+
+```bash
+make smoke-test
+```
+
+### Deployment-oriented Docker builds
+
+Production-style images can be built from the service Dockerfiles:
+
+```bash
+make docker-build
+```
+
+The backend image includes compiled binaries for every service plus the migration binary. Override the backend container entrypoint or command to run the desired binary, for example `/usr/local/bin/auth-service`, `/usr/local/bin/worker-service`, or `/usr/local/bin/migrate up`. The frontend image serves the Vite production build through nginx.

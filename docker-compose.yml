@@ -1,53 +1,194 @@
+x-backend-env: &backend-env
+  APP_ENV: development
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: postgres://postgres:postgres@postgres:5432/anti_vibe?sslmode=disable
+  POSTGRES_DSN: postgres://postgres:postgres@postgres:5432/anti_vibe?sslmode=disable
+  QUEUE_URL: redis://redis:6379
+  REDIS_ADDR: redis:6379
+  QUEUE_NAMESPACE: ${QUEUE_NAMESPACE:-anti_vibe}
+  ANALYSIS_QUEUE_NAME: ${ANALYSIS_QUEUE_NAME:-analysis_jobs}
+  ANALYSIS_DEAD_LETTER_QUEUE_NAME: ${ANALYSIS_DEAD_LETTER_QUEUE_NAME:-analysis_jobs_dead}
+  GITLAB_BASE_URL: ${GITLAB_BASE_URL:-https://gitlab.com}
+  GITLAB_BOT_TOKEN: ${GITLAB_BOT_TOKEN:-replace_me}
+  GITLAB_BOT_USERNAME: ${GITLAB_BOT_USERNAME:-gitlab-server-userbot}
+  AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com}
+  AI_API_KEY: ${AI_API_KEY:-replace_me}
+  AI_MODEL: ${AI_MODEL:-gpt-4.1-mini}
+  AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
+  AUTH_JWT_HS256_SECRET: ${AUTH_JWT_HS256_SECRET:-local-dev-jwt-secret-change-me}
+  JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me}
+  JWT_ACCESS_TOKEN_TTL_MINUTES: ${JWT_ACCESS_TOKEN_TTL_MINUTES:-60}
+  JWT_REFRESH_TOKEN_TTL_DAYS: ${JWT_REFRESH_TOKEN_TTL_DAYS:-30}
+  EXAM_TIMEZONE: ${EXAM_TIMEZONE:-Asia/Shanghai}
+  EXAM_OPEN_DOW: ${EXAM_OPEN_DOW:-Saturday}
+  EXAM_PASS_PERCENT: ${EXAM_PASS_PERCENT:-70}
+  WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-3}
+  MAX_JOB_ATTEMPTS: ${MAX_JOB_ATTEMPTS:-3}
+  RETRY_DELAY_SECONDS: ${RETRY_DELAY_SECONDS:-30}
+
+x-backend-service: &backend-service
+  build:
+    context: ./backend
+    target: dev
+  volumes:
+    - ./backend:/app/backend
+    - go_mod_cache:/go/pkg/mod
+    - go_build_cache:/root/.cache/go-build
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
+  restart: unless-stopped
+
 services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_DB: anti_vibe
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-anti_vibe}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-anti_vibe}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build:
+      context: ./backend
+      target: dev
+    command: go run ./cmd/migrate up
+    environment:
+      <<: *backend-env
+      SERVICE_NAME: migrate
+    volumes:
+      - ./backend:/app/backend
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api-gateway:
+    <<: *backend-service
+    command: go run ./cmd/api-gateway
+    environment:
+      <<: *backend-env
+      SERVICE_NAME: api-gateway
+      API_GATEWAY_HTTP_PORT: 8080
+    ports:
+      - "${API_GATEWAY_HTTP_PORT:-8080}:8080"
+
+  auth-service:
+    <<: *backend-service
+    command: go run ./cmd/auth-service
+    environment:
+      <<: *backend-env
+      SERVICE_NAME: auth-service
+      AUTH_SERVICE_HTTP_PORT: 8081
+    ports:
+      - "${AUTH_SERVICE_HTTP_PORT:-8081}:8081"
+
+  gitlab-reader-service:
+    <<: *backend-service
+    command: go run ./cmd/gitlab-reader-service
+    environment:
+      <<: *backend-env
+      SERVICE_NAME: gitlab-reader-service
+      GITLAB_READER_SERVICE_HTTP_PORT: 8082
+    ports:
+      - "${GITLAB_READER_SERVICE_HTTP_PORT:-8082}:8082"
+
+  ai-analysis-service:
+    <<: *backend-service
+    command: go run ./cmd/ai-analysis-service
+    environment:
+      <<: *backend-env
+      SERVICE_NAME: ai-analysis-service
+      AI_ANALYSIS_SERVICE_HTTP_PORT: 8083
+    ports:
+      - "${AI_ANALYSIS_SERVICE_HTTP_PORT:-8083}:8083"
+
+  question-service:
+    <<: *backend-service
+    command: go run ./cmd/question-service
+    environment:
+      <<: *backend-env
+      SERVICE_NAME: question-service
+      QUESTION_SERVICE_HTTP_PORT: 8084
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-local-internal-token}
+    ports:
+      - "${QUESTION_SERVICE_HTTP_PORT:-8084}:8084"
+
+  exam-service:
+    <<: *backend-service
+    command: go run ./cmd/exam-service
+    environment:
+      <<: *backend-env
+      SERVICE_NAME: exam-service
+      EXAM_SERVICE_HTTP_PORT: 8085
+    ports:
+      - "${EXAM_SERVICE_HTTP_PORT:-8085}:8085"
+
+  scheduler-service:
+    <<: *backend-service
+    command: go run ./cmd/scheduler-service
+    environment:
+      <<: *backend-env
+      SERVICE_NAME: scheduler-service
+      SCHEDULER_SERVICE_HTTP_PORT: 8086
+    ports:
+      - "${SCHEDULER_SERVICE_HTTP_PORT:-8086}:8086"
 
   worker-service:
-    image: golang:1.24
-    working_dir: /app/backend
+    <<: *backend-service
     command: go run ./cmd/worker-service
-    ports:
-      - "8087:8087"
-    depends_on:
-      - postgres
-      - redis
     environment:
+      <<: *backend-env
       SERVICE_NAME: worker-service
       WORKER_SERVICE_HTTP_PORT: 8087
-      LOG_LEVEL: info
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/anti_vibe?sslmode=disable
-      QUEUE_URL: redis://redis:6379
-      REDIS_ADDR: redis:6379
-      ANALYSIS_QUEUE_NAME: analysis_jobs
-      ANALYSIS_DEAD_LETTER_QUEUE_NAME: analysis_jobs_dead
-      WORKER_CONCURRENCY: 3
-      MAX_JOB_ATTEMPTS: 3
-      RETRY_DELAY_SECONDS: 30
-      GITLAB_BASE_URL: https://gitlab.com
-      GITLAB_BOT_TOKEN: ${GITLAB_BOT_TOKEN:-replace_me}
-      GITLAB_BOT_USERNAME: ${GITLAB_BOT_USERNAME:-replace_me}
-      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com}
-      AI_API_KEY: ${AI_API_KEY:-replace_me}
-      AI_MODEL: ${AI_MODEL:-gpt-4.1-mini}
-      AI_TIMEOUT_SECONDS: 60
+    ports:
+      - "${WORKER_SERVICE_HTTP_PORT:-8087}:8087"
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+      VITE_GITLAB_BOT_USERNAME: ${GITLAB_BOT_USERNAME:-gitlab-server-userbot}
     volumes:
-      - .:/app
+      - ./frontend:/app/frontend
+      - frontend_node_modules:/app/frontend/node_modules
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
+  go_mod_cache:
+  go_build_cache:
+  frontend_node_modules:
