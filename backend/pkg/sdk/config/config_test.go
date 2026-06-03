@@ -44,11 +44,14 @@ func TestLoadReadsSharedEnvironment(t *testing.T) {
 	if cfg.JWTSecret != "jwt-secret" || cfg.AuthJWTHS256Secret != cfg.JWTSecret {
 		t.Fatalf("jwt aliases not loaded: %#v", cfg)
 	}
+	if cfg.JWTAccessTokenTTLMinutes != 60 || cfg.JWTRefreshTokenTTLDays != 30 {
+		t.Fatalf("jwt ttl defaults not loaded: %#v", cfg)
+	}
 }
 
 func TestLoadFromEnvAllowsServicePrefixedOverrides(t *testing.T) {
 	t.Setenv("HTTP_PORT", "8080")
-	t.Setenv("AUTH_SERVICE_HTTP_PORT", "8081")
+	t.Setenv("AUTH_SERVICE_PORT", "8081")
 	t.Setenv("DATABASE_URL", "postgres://global")
 	t.Setenv("AUTH_SERVICE_DATABASE_URL", "postgres://service")
 

@@ -39,8 +39,13 @@ type Config struct {
 	AIModel          string
 	AITimeoutSeconds int
 
-	JWTSecret          string
-	AuthJWTHS256Secret string // Deprecated alias for JWTSecret.
+	JWTSecret                     string
+	AuthJWTHS256Secret            string // Deprecated alias for JWTSecret.
+	JWTAccessTokenTTLMinutes      int
+	JWTRefreshTokenTTLDays        int
+	TomorrowSchoolSSOClientID     string
+	TomorrowSchoolSSOClientSecret string
+	TomorrowSchoolSSORedirectURL  string
 
 	ExamTimezone    string
 	ExamOpenDOW     string
@@ -67,7 +72,7 @@ func Load() Config {
 }
 
 // LoadFromEnv reads common and service-prefixed environment variables for a service.
-// A service-prefixed variable such as AUTH_SERVICE_HTTP_PORT overrides HTTP_PORT.
+// A service-prefixed variable such as AUTH_SERVICE_HTTP_PORT or AUTH_SERVICE_PORT overrides HTTP_PORT.
 func LoadFromEnv(serviceName string) (Config, error) {
 	serviceName = strings.TrimSpace(serviceName)
 	if serviceName == "" {
@@ -85,11 +90,15 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 	if allowServicePrefix && serviceName != "" {
 		prefix = toEnvPrefix(serviceName)
 	}
+	getPrefixed := func(key string) string {
+		if prefix == "" {
+			return ""
+		}
+		return os.Getenv(prefix + key)
+	}
 	get := func(key string) string {
-		if prefix != "" {
-			if v := os.Getenv(prefix + key); v != "" {
-				return v
-			}
+		if v := getPrefixed(key); v != "" {
+			return v
 		}
 		return os.Getenv(key)
 	}
@@ -98,7 +107,7 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 		serviceName = firstNonEmpty(get("SERVICE_NAME"), "backend-service")
 	}
 
-	httpPort, err := parseInt(get("HTTP_PORT"), 0)
+	httpPort, err := parseInt(firstNonEmpty(getPrefixed("HTTP_PORT"), getPrefixed("PORT"), os.Getenv("HTTP_PORT"), os.Getenv("PORT")), 0)
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid HTTP_PORT: %w", err)
 	}
@@ -117,6 +126,14 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 	passPercent, err := parseInt(get("EXAM_PASS_PERCENT"), 80)
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid EXAM_PASS_PERCENT: %w", err)
+	}
+	jwtAccessTTL, err := parseInt(get("JWT_ACCESS_TOKEN_TTL_MINUTES"), 60)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid JWT_ACCESS_TOKEN_TTL_MINUTES: %w", err)
+	}
+	jwtRefreshTTL, err := parseInt(get("JWT_REFRESH_TOKEN_TTL_DAYS"), 30)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid JWT_REFRESH_TOKEN_TTL_DAYS: %w", err)
 	}
 
 	databaseURL := firstNonEmpty(get("DATABASE_URL"), get("POSTGRES_DSN"))
@@ -145,8 +162,13 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 		AIModel:          firstNonEmpty(get("AI_MODEL"), "gpt-4.1-mini"),
 		AITimeoutSeconds: aiTimeout,
 
-		JWTSecret:          jwtSecret,
-		AuthJWTHS256Secret: jwtSecret,
+		JWTSecret:                     jwtSecret,
+		AuthJWTHS256Secret:            jwtSecret,
+		JWTAccessTokenTTLMinutes:      jwtAccessTTL,
+		JWTRefreshTokenTTLDays:        jwtRefreshTTL,
+		TomorrowSchoolSSOClientID:     get("TOMORROW_SCHOOL_SSO_CLIENT_ID"),
+		TomorrowSchoolSSOClientSecret: get("TOMORROW_SCHOOL_SSO_CLIENT_SECRET"),
+		TomorrowSchoolSSORedirectURL:  get("TOMORROW_SCHOOL_SSO_REDIRECT_URL"),
 
 		ExamTimezone:    firstNonEmpty(get("EXAM_TIMEZONE"), "Asia/Shanghai"),
 		ExamOpenDOW:     firstNonEmpty(get("EXAM_OPEN_DOW"), "Friday"),
