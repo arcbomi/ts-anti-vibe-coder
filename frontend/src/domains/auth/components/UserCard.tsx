@@ -1,10 +1,20 @@
-import type { User } from '@/domains/auth/types/auth.types'
+import { Button } from '@/shared/components/Button'
+import type { AuthUser } from '@/domains/auth/types/auth.types'
 
-export function UserCard({ user }: { user: User }) {
+type UserCardProps = {
+  user: AuthUser
+  isLoading?: boolean
+  onLogout: () => void
+}
+
+export function UserCard({ user, isLoading = false, onLogout }: UserCardProps) {
   return (
-    <div>
-      <div>User</div>
+    <section aria-label="Current user">
+      <div>{user.name}</div>
       <div>{user.email}</div>
-    </div>
+      <Button type="button" disabled={isLoading} onClick={onLogout}>
+        {isLoading ? 'Logging out...' : 'Logout'}
+      </Button>
+    </section>
   )
 }

@@ -1,6 +1,7 @@
-export type User = {
+export type AuthUser = {
   id: string
   email: string
+  name: string
 }
 
 export type LoginRequest = {
@@ -9,6 +10,13 @@ export type LoginRequest = {
 }
 
 export type LoginResponse = {
+  user: AuthUser
   token: string
-  user: User
+}
+
+export type AuthState = {
+  user: AuthUser | null
+  token: string | null
+  isLoading: boolean
+  error: string | null
 }
