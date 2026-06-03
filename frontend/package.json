@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:integration": "vitest run \"tests/integration/**/*.integration.test.tsx\" --environment jsdom"
   },
   "dependencies": {
     "react": "^19.2.6",
