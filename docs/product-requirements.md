@@ -17,7 +17,7 @@ The core product flow is:
 7. If access is confirmed, the system reads the repository automatically.
 8. AI analyzes the codebase.
 9. AI generates exactly 20 English-only A/B/C/D questions.
-10. The user takes an offline exam on Friday.
+10. The user takes an offline exam on Saturday.
 11. The backend grades the answers.
 12. If the user passes, the user is verified as understanding that repository.
 13. If the user fails, the user is not verified yet.
@@ -37,7 +37,7 @@ The target users are:
 - Students who must prove they understand a repository they worked on.
 - Learners using AI coding tools who need to demonstrate real code comprehension.
 - Instructors or school staff who need a pass/fail verification result for a specific repository.
-- Program participants who must attend an offline Friday exam and answer questions about their own codebase.
+- Program participants who must attend an offline Saturday exam and answer questions about their own codebase.
 
 ## 4. Main User Flow
 
@@ -56,8 +56,8 @@ The main user flow must work as follows:
 11. System starts an AI analysis job.
 12. AI analyzes the repository structure and program logic.
 13. AI generates exactly 20 English-only multiple-choice questions.
-14. User is assigned to an offline Friday exam.
-15. User goes to the exam location on Friday.
+14. User is assigned to an offline Saturday exam.
+15. User goes to the exam location on Saturday.
 16. User answers A/B/C/D questions.
 17. Backend grades the exam.
 18. If the user passes, the platform marks the user as understanding this repository.
@@ -158,14 +158,14 @@ Questions must avoid shallow topics. Bad question topics include:
 - UI color.
 - Simple syntax trivia.
 
-## 9. Offline Friday Exam Flow
+## 9. Offline Saturday Exam Flow
 
-The exam is an offline exam that happens on Friday.
+The exam is an offline exam that happens on Saturday.
 
 The exam flow must be:
 
-1. After question generation, the user is assigned to a Friday offline exam.
-2. User goes to the exam location on Friday.
+1. After question generation, the user is assigned to a Saturday offline exam.
+2. User goes to the exam location on Saturday.
 3. User receives the 20 generated A/B/C/D questions.
 4. User answers each question by selecting A, B, C, or D.
 5. Frontend or exam interface submits the selected answers without exposing correct answers.
@@ -175,7 +175,7 @@ The exam flow must be:
 Exam requirements:
 
 - Exam type: offline.
-- Exam date: Friday.
+- Exam date: Saturday.
 - Question count: 20.
 - Question language: English only.
 - Question format: A/B/C/D multiple choice.
@@ -246,7 +246,7 @@ The MVP must include:
 - Automatic repository reading after access is confirmed.
 - AI repository analysis job.
 - Generation of exactly 20 English-only A/B/C/D questions.
-- Offline Friday exam assignment.
+- Offline Saturday exam assignment.
 - Exam answer submission.
 - Backend grading.
 - Configurable passing score with a default of 70%.

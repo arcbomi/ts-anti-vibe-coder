@@ -1,3 +1,3 @@
 package scheduler
 
-// Package scheduler contains Friday exam scheduling logic.
+// Package scheduler contains Saturday exam scheduling logic.

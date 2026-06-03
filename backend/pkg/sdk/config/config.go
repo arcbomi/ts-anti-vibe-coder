@@ -142,7 +142,7 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid AI_TIMEOUT_SECONDS: %w", err)
 	}
-	passPercent, err := parseInt(get("EXAM_PASS_PERCENT"), 80)
+	passPercent, err := parseInt(get("EXAM_PASS_PERCENT"), 70)
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid EXAM_PASS_PERCENT: %w", err)
 	}
@@ -198,7 +198,7 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 		TomorrowSchoolSSORedirectURL:  get("TOMORROW_SCHOOL_SSO_REDIRECT_URL"),
 
 		ExamTimezone:    firstNonEmpty(get("EXAM_TIMEZONE"), "Asia/Shanghai"),
-		ExamOpenDOW:     firstNonEmpty(get("EXAM_OPEN_DOW"), "Friday"),
+		ExamOpenDOW:     firstNonEmpty(get("EXAM_OPEN_DOW"), "Saturday"),
 		ExamPassPercent: passPercent,
 	}
 	return cfg, nil

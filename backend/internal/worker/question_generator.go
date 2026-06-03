@@ -25,7 +25,7 @@ It belongs to the AI analysis / exam generation service.
 
 Its job is to analyze the user's GitLab repository, not the platform backend repository itself.
 
-The generated questions are used in the offline Friday exam to verify whether the user really understands their own project code.
+The generated questions are used in the offline Saturday exam to verify whether the user really understands their own project code.
 
 ## Important Scope Rule
 
