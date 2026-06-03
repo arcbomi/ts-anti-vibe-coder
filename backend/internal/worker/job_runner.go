@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -42,11 +43,11 @@ func (r *JobRunner) Run(ctx context.Context, msg AnalysisJobMessage) error {
 	if err != nil {
 		return err
 	}
-	input, err := r.buildRepositoryInput(ctx, msg, files)
+	index, err := r.buildCodeIndex(ctx, msg, files)
 	if err != nil {
 		return err
 	}
-	analysisResult, err := r.analyzeCode(ctx, msg, input)
+	analysisResult, err := r.analyzeCode(ctx, msg, index)
 	if err != nil {
 		return err
 	}
@@ -127,15 +128,7 @@ type FileSummary struct {
 
 func (r *JobRunner) buildCodeIndex(ctx context.Context, msg AnalysisJobMessage, files []RepositoryFile) (CodeIndex, error) {
 	if err := r.updateStatus(ctx, msg, StatusIndexingCode); err != nil {
-		return analysis.RepositoryInput{}, err
-	}
-	input := analysis.RepositoryInput{
-		UserID:         msg.UserID,
-		RepositoryID:   msg.RepositoryID,
-		GitLabRepoURL:  msg.GitLabRepoURL,
-		Branch:         msg.Branch,
-		RepositoryTree: make([]string, 0, len(files)),
-		Files:          make([]analysis.RepositoryFile, 0, len(files)),
+		return CodeIndex{}, err
 	}
 	index := CodeIndex{
 		UserID:         msg.UserID,
@@ -157,7 +150,7 @@ func (r *JobRunner) buildCodeIndex(ctx context.Context, msg AnalysisJobMessage, 
 	return index, nil
 }
 
-func (r *JobRunner) analyzeCode(ctx context.Context, msg AnalysisJobMessage, input analysis.RepositoryInput) (json.RawMessage, error) {
+func (r *JobRunner) analyzeCode(ctx context.Context, msg AnalysisJobMessage, index CodeIndex) (json.RawMessage, error) {
 	if err := r.updateStatus(ctx, msg, StatusAnalyzingCode); err != nil {
 		return nil, err
 	}
@@ -168,7 +161,7 @@ func (r *JobRunner) analyzeCode(ctx context.Context, msg AnalysisJobMessage, inp
 		return nil, ClassifyExternalError(ErrCodeAITimeout, err)
 	}
 	r.logJob(msg, StatusAnalyzingCode).Info("repository analyzed")
-	return analysisResult, nil
+	return analysis, nil
 }
 
 func buildRepositoryAnalysisPrompt(payload string) string {
@@ -328,11 +321,11 @@ Repository payload:
 ` + payload
 }
 
-func (r *JobRunner) generateQuestions(ctx context.Context, msg AnalysisJobMessage, analysis json.RawMessage) ([]GeneratedQuestion, error) {
+func (r *JobRunner) generateQuestions(ctx context.Context, msg AnalysisJobMessage, analysisResult json.RawMessage) ([]GeneratedQuestion, error) {
 	if err := r.updateStatus(ctx, msg, StatusGeneratingQuestions); err != nil {
 		return nil, err
 	}
-	prompt := buildQuestionGenerationPrompt(analysis)
+	prompt := buildQuestionGenerationPrompt(analysisResult)
 	raw, err := r.ai.GenerateJSON(ctx, prompt)
 	if err != nil {
 		return nil, ClassifyExternalError(ErrCodeAITimeout, err)
