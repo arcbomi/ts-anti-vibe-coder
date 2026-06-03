@@ -35,7 +35,23 @@ async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
     }
   }
 
-  return (await response.json()) as ApiResponse<T>
+  const payload = (await response.json()) as ApiResponse<T> | T
+
+  if (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'success' in payload &&
+    'data' in payload &&
+    'error' in payload
+  ) {
+    return payload as ApiResponse<T>
+  }
+
+  return {
+    success: response.ok,
+    data: payload as T,
+    error: response.ok ? null : { code: 'HTTP_ERROR', message: response.statusText },
+  }
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {

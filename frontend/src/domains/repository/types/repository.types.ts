@@ -1,11 +1,15 @@
+export type BotAccessStatus = 'pending' | 'checking' | 'granted' | 'denied' | 'failed'
+
 export type Repository = {
   id: string
-  gitlabRepoUrl: string
-  defaultBranch?: string
+  gitlab_repo_url: string
+  bot_access_status: BotAccessStatus
 }
 
 export type CreateRepositoryRequest = {
-  gitlabRepoUrl: string
+  gitlab_repo_url: string
 }
 
-export type BotAccessStatus = 'unknown' | 'checking' | 'granted' | 'denied'
+export type StartAnalysisResponse = {
+  analysis_job_id: string
+}
