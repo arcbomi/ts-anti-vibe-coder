@@ -1,0 +1,1 @@
+# ts-anti-vibe-coder
