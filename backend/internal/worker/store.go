@@ -6,20 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"backend/internal/analysis"
 	"backend/pkg/sdk/database"
 )
 
-type GeneratedQuestion struct {
-	Question       string `json:"question"`
-	OptionA        string `json:"option_a"`
-	OptionB        string `json:"option_b"`
-	OptionC        string `json:"option_c"`
-	OptionD        string `json:"option_d"`
-	CorrectOption  string `json:"correct_option"`
-	Explanation    string `json:"explanation"`
-	Difficulty     string `json:"difficulty"`
-	SourceFilePath string `json:"source_file_path"`
-}
+type GeneratedQuestion = analysis.GeneratedQuestion
 
 type AnalysisStore interface {
 	EnsureSchema(ctx context.Context) error

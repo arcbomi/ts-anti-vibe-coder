@@ -3,10 +3,10 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"strings"
 
+	"backend/internal/analysis"
 	"backend/pkg/sdk/aiclient"
 	"backend/pkg/sdk/gitlabclient"
 )
@@ -42,15 +42,15 @@ func (r *JobRunner) Run(ctx context.Context, msg AnalysisJobMessage) error {
 	if err != nil {
 		return err
 	}
-	index, err := r.buildCodeIndex(ctx, msg, files)
+	input, err := r.buildRepositoryInput(ctx, msg, files)
 	if err != nil {
 		return err
 	}
-	analysis, err := r.analyzeCode(ctx, msg, index)
+	analysisResult, err := r.analyzeCode(ctx, msg, input)
 	if err != nil {
 		return err
 	}
-	questions, err := r.generateQuestions(ctx, msg, analysis)
+	questions, err := r.generateQuestions(ctx, msg, analysisResult)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,15 @@ type FileSummary struct {
 
 func (r *JobRunner) buildCodeIndex(ctx context.Context, msg AnalysisJobMessage, files []RepositoryFile) (CodeIndex, error) {
 	if err := r.updateStatus(ctx, msg, StatusIndexingCode); err != nil {
-		return CodeIndex{}, err
+		return analysis.RepositoryInput{}, err
+	}
+	input := analysis.RepositoryInput{
+		UserID:         msg.UserID,
+		RepositoryID:   msg.RepositoryID,
+		GitLabRepoURL:  msg.GitLabRepoURL,
+		Branch:         msg.Branch,
+		RepositoryTree: make([]string, 0, len(files)),
+		Files:          make([]analysis.RepositoryFile, 0, len(files)),
 	}
 	index := CodeIndex{
 		UserID:         msg.UserID,
@@ -149,7 +157,7 @@ func (r *JobRunner) buildCodeIndex(ctx context.Context, msg AnalysisJobMessage, 
 	return index, nil
 }
 
-func (r *JobRunner) analyzeCode(ctx context.Context, msg AnalysisJobMessage, index CodeIndex) (json.RawMessage, error) {
+func (r *JobRunner) analyzeCode(ctx context.Context, msg AnalysisJobMessage, input analysis.RepositoryInput) (json.RawMessage, error) {
 	if err := r.updateStatus(ctx, msg, StatusAnalyzingCode); err != nil {
 		return nil, err
 	}
@@ -160,7 +168,7 @@ func (r *JobRunner) analyzeCode(ctx context.Context, msg AnalysisJobMessage, ind
 		return nil, ClassifyExternalError(ErrCodeAITimeout, err)
 	}
 	r.logJob(msg, StatusAnalyzingCode).Info("repository analyzed")
-	return analysis, nil
+	return analysisResult, nil
 }
 
 func buildRepositoryAnalysisPrompt(payload string) string {
@@ -329,7 +337,7 @@ func (r *JobRunner) generateQuestions(ctx context.Context, msg AnalysisJobMessag
 	if err != nil {
 		return nil, ClassifyExternalError(ErrCodeAITimeout, err)
 	}
-	questions, err := parseAndValidateQuestions(raw)
+	questions, err := analysis.ParseAndValidateQuestions(raw)
 	if err != nil {
 		return nil, NewPermanentError(ErrCodeAIOutputInvalid, err.Error(), err)
 	}
