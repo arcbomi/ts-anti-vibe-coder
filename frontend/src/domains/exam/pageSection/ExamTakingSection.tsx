@@ -23,8 +23,9 @@ export function ExamTakingSection() {
       try {
         const resp = await questionApi.listForExam(examId)
         if (!stopped) questionStore.getState().setQuestions(resp.questions)
-      } catch (e: any) {
-        if (!stopped) setError(e?.message ?? 'Failed to load questions')
+      } catch (caughtError: unknown) {
+        const message = caughtError instanceof Error ? caughtError.message : 'Failed to load questions'
+        if (!stopped) setError(message)
       } finally {
         if (!stopped) setLoading(false)
       }

@@ -6,9 +6,9 @@ import { useAnalysisJob } from '@/domains/analysis/hooks/useAnalysisJob'
 
 export function AnalysisProgressSection() {
   const { jobId } = useParams()
-  if (!jobId) return <ErrorState message="Missing jobId" />
-
   const { job, error } = useAnalysisJob(jobId)
+
+  if (!jobId) return <ErrorState message="Missing jobId" />
   if (error) return <ErrorState message={error} />
   if (!job) return <LoadingState label="Loading analysis job..." />
 

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 
 export function useExamTimer(durationSeconds: number) {
-  const [remaining, setRemaining] = useState(durationSeconds)
+  const [endsAt] = useState(() => Date.now() + durationSeconds * 1000)
+  const [now, setNow] = useState(() => Date.now())
+
   useEffect(() => {
-    setRemaining(durationSeconds)
-    const t = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000)
-    return () => clearInterval(t)
-  }, [durationSeconds])
-  return { remainingSeconds: remaining }
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  return { remainingSeconds: Math.max(0, Math.ceil((endsAt - now) / 1000)) }
 }

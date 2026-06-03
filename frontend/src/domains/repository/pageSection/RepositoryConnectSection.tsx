@@ -7,7 +7,7 @@ import { repositoryStore } from '@/domains/repository/store/repositoryStore'
 
 export function RepositoryConnectSection() {
   const nav = useNavigate()
-  const botUsername = (import.meta as any).env?.VITE_GITLAB_BOT_USERNAME ?? 'gitlab-bot'
+  const botUsername = import.meta.env.VITE_GITLAB_BOT_USERNAME ?? 'gitlab-bot'
 
   return (
     <div>
@@ -20,7 +20,7 @@ export function RepositoryConnectSection() {
       />
       <BotInstructionCard botUsername={botUsername} />
       <button type="button" onClick={() => nav('/repository/status')}>
-        I already added the bot.
+        I already added the bot
       </button>
     </div>
   )
