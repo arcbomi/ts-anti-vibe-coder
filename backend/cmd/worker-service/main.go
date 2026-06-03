@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -57,6 +59,7 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	healthServer := startHealthServer(cfg, log)
 
 	log.Info("worker service started", "queue", cfg.AnalysisQueueName, "dead_letter_queue", cfg.AnalysisDeadLetterQueueName, "concurrency", cfg.WorkerConcurrency)
 	if err := consumer.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
@@ -66,6 +69,26 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if healthServer != nil {
+		_ = healthServer.Shutdown(shutdownCtx)
+	}
 	_ = database.Ping(shutdownCtx, db)
 	log.Info("shutdown complete")
+}
+
+func startHealthServer(cfg config.Config, log *slog.Logger) *http.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+
+	srv := &http.Server{Addr: cfg.HTTPAddr(), Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	go func() {
+		log.Info("worker health server started", "addr", cfg.HTTPAddr())
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error("worker health server failed", "err", err)
+		}
+	}()
+	return srv
 }

@@ -108,3 +108,54 @@ These integration tests intentionally do not cover:
 - admin question review, because generated questions are used directly by product design;
 - real GitLab.com or real AI provider calls, because those are replaced only at the external boundary by fake servers;
 - visual screenshot regression testing.
+
+## Smoke tests
+
+Smoke tests provide a fast post-deployment check that the main system is alive and usable. They intentionally avoid deep business-logic verification and should complete quickly.
+
+Run them from the repository root after deploying the backend services, worker, frontend, PostgreSQL, and Redis:
+
+```bash
+./scripts/run-smoke-tests.sh
+# or
+make smoke-test
+```
+
+The script loads `.env` when it exists, then runs:
+
+```bash
+go test -count=1 -tags=smoke ./tests/smoke
+```
+
+### Smoke test coverage
+
+The smoke suite checks:
+
+1. every backend service `/healthz` endpoint responds successfully;
+2. the API gateway `/healthz` endpoint responds successfully;
+3. the worker `/healthz` endpoint responds successfully;
+4. the frontend root page returns a successful HTTP response;
+5. the exam route can be opened by the frontend server;
+6. PostgreSQL accepts a quick ping;
+7. Redis accepts a quick ping;
+8. required AI client configuration exists and is not a placeholder;
+9. required GitLab bot configuration exists and is not a placeholder;
+10. a basic repository create request receives a fast validation response instead of a server error.
+
+### Smoke test URL overrides
+
+By default, the suite targets local development ports from `.env.example`. Override these variables for a deployed environment:
+
+| Variable | Default |
+| --- | --- |
+| `SMOKE_FRONTEND_URL` | `http://localhost:5173` |
+| `SMOKE_API_GATEWAY_URL` | `http://localhost:8080` |
+| `SMOKE_AUTH_SERVICE_URL` | `http://localhost:8081` |
+| `SMOKE_GITLAB_READER_SERVICE_URL` | `http://localhost:8082` |
+| `SMOKE_AI_ANALYSIS_SERVICE_URL` | `http://localhost:8083` |
+| `SMOKE_QUESTION_SERVICE_URL` | `http://localhost:8084` |
+| `SMOKE_EXAM_SERVICE_URL` | `http://localhost:8085` |
+| `SMOKE_SCHEDULER_SERVICE_URL` | `http://localhost:8086` |
+| `SMOKE_WORKER_SERVICE_URL` | `http://localhost:8087` |
+
+The database, queue, AI, and GitLab checks use the normal service configuration variables, including `DATABASE_URL`, `QUEUE_URL` or `REDIS_ADDR`, `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`, `GITLAB_BASE_URL`, `GITLAB_BOT_TOKEN`, and `GITLAB_BOT_USERNAME`.

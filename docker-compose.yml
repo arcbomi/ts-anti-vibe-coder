@@ -21,11 +21,14 @@ services:
     image: golang:1.24
     working_dir: /app/backend
     command: go run ./cmd/worker-service
+    ports:
+      - "8087:8087"
     depends_on:
       - postgres
       - redis
     environment:
       SERVICE_NAME: worker-service
+      WORKER_SERVICE_HTTP_PORT: 8087
       LOG_LEVEL: info
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/anti_vibe?sslmode=disable
       QUEUE_URL: redis://redis:6379
@@ -37,6 +40,7 @@ services:
       RETRY_DELAY_SECONDS: 30
       GITLAB_BASE_URL: https://gitlab.com
       GITLAB_BOT_TOKEN: ${GITLAB_BOT_TOKEN:-replace_me}
+      GITLAB_BOT_USERNAME: ${GITLAB_BOT_USERNAME:-replace_me}
       AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com}
       AI_API_KEY: ${AI_API_KEY:-replace_me}
       AI_MODEL: ${AI_MODEL:-gpt-4.1-mini}
