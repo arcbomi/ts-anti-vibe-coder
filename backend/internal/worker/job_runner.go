@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"unicode"
 
 	"backend/pkg/sdk/aiclient"
 	"backend/pkg/sdk/gitlabclient"
@@ -325,7 +324,7 @@ func (r *JobRunner) generateQuestions(ctx context.Context, msg AnalysisJobMessag
 	if err := r.updateStatus(ctx, msg, StatusGeneratingQuestions); err != nil {
 		return nil, err
 	}
-	prompt := `Generate exactly 20 English-only multiple-choice questions for an offline codebase understanding exam from this repository analysis. Return JSON object {"questions":[...]} only. Each question must have question, option_a, option_b, option_c, option_d, correct_option (A/B/C/D), explanation, difficulty, source_file_path. There must be exactly one correct option.` + "\nAnalysis:\n" + string(analysis)
+	prompt := buildQuestionGenerationPrompt(analysis)
 	raw, err := r.ai.GenerateJSON(ctx, prompt)
 	if err != nil {
 		return nil, ClassifyExternalError(ErrCodeAITimeout, err)
@@ -368,39 +367,4 @@ func (r *JobRunner) logJob(msg AnalysisJobMessage, status string) *slog.Logger {
 func summarizeFile(f RepositoryFile) string {
 	lines := strings.Count(f.Content, "\n") + 1
 	return fmt.Sprintf("%s has %d bytes and approximately %d lines", f.Path, f.Size, lines)
-}
-
-func parseAndValidateQuestions(raw json.RawMessage) ([]GeneratedQuestion, error) {
-	var envelope struct {
-		Questions []GeneratedQuestion `json:"questions"`
-	}
-	if err := json.Unmarshal(raw, &envelope); err != nil {
-		return nil, err
-	}
-	if len(envelope.Questions) != 20 {
-		return nil, fmt.Errorf("AI output must include exactly 20 questions, got %d", len(envelope.Questions))
-	}
-	for i, q := range envelope.Questions {
-		if strings.TrimSpace(q.Question) == "" || strings.TrimSpace(q.OptionA) == "" || strings.TrimSpace(q.OptionB) == "" || strings.TrimSpace(q.OptionC) == "" || strings.TrimSpace(q.OptionD) == "" || strings.TrimSpace(q.Explanation) == "" || strings.TrimSpace(q.SourceFilePath) == "" {
-			return nil, fmt.Errorf("question %d is missing required fields", i+1)
-		}
-		q.CorrectOption = strings.ToUpper(strings.TrimSpace(q.CorrectOption))
-		if q.CorrectOption != "A" && q.CorrectOption != "B" && q.CorrectOption != "C" && q.CorrectOption != "D" {
-			return nil, fmt.Errorf("question %d correct_option must be A, B, C, or D", i+1)
-		}
-		if containsNonEnglishText(q.Question + q.OptionA + q.OptionB + q.OptionC + q.OptionD + q.Explanation) {
-			return nil, fmt.Errorf("question %d contains non-English text", i+1)
-		}
-		envelope.Questions[i].CorrectOption = q.CorrectOption
-	}
-	return envelope.Questions, nil
-}
-
-func containsNonEnglishText(s string) bool {
-	for _, r := range s {
-		if r > unicode.MaxASCII && (unicode.IsLetter(r) || unicode.Is(unicode.Han, r) || unicode.Is(unicode.Hiragana, r) || unicode.Is(unicode.Katakana, r) || unicode.Is(unicode.Hangul, r)) {
-			return true
-		}
-	}
-	return false
 }
