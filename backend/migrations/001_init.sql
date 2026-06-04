@@ -13,15 +13,15 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS repositories (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL,
-  gitlab_repo_url TEXT NOT NULL,
-  gitlab_project_path TEXT NOT NULL,
+  gitea_repo_url TEXT NOT NULL,
+  gitea_project_path TEXT NOT NULL,
   default_branch TEXT NOT NULL DEFAULT 'main',
   bot_access_status TEXT NOT NULL DEFAULT 'unknown',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_repositories_user_id ON repositories(user_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_repositories_user_project ON repositories(user_id, gitlab_project_path);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_repositories_user_project ON repositories(user_id, gitea_project_path);
 
 CREATE TABLE IF NOT EXISTS analysis_jobs (
   id UUID PRIMARY KEY,

@@ -19,11 +19,13 @@ var (
 )
 
 type Claims struct {
-	Subject string `json:"sub"`
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	Issued  int64  `json:"iat"`
-	Expires int64  `json:"exp"`
+	Subject   string `json:"sub"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
+	Issued    int64  `json:"iat"`
+	Expires   int64  `json:"exp"`
 }
 
 type Identity struct {
@@ -32,6 +34,8 @@ type Identity struct {
 	Name   string
 }
 
+// Validator validates JWTs issued by this backend's own auth-service.
+// It is not intended to validate Tomorrow School-issued tokens.
 type Validator struct {
 	secret []byte
 	now    func() time.Time

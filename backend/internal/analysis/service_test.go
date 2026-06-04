@@ -9,7 +9,7 @@ func TestBuildCodeIndexIncludesSubmittedRepositoryContext(t *testing.T) {
 	input := RepositoryInput{
 		UserID:         "user-123",
 		RepositoryID:   "repo-456",
-		GitLabRepoURL:  "https://gitlab.example.com/group/project",
+		GiteaRepoURL:   "https://gitea.example.com/group/project",
 		Branch:         "develop",
 		RepositoryTree: []string{"cmd/server/main.go"},
 		Files: []RepositoryFile{
@@ -20,7 +20,7 @@ func TestBuildCodeIndexIncludesSubmittedRepositoryContext(t *testing.T) {
 
 	index := BuildCodeIndex(input)
 
-	if index.UserID != input.UserID || index.RepositoryID != input.RepositoryID || index.GitLabRepoURL != input.GitLabRepoURL || index.Branch != input.Branch {
+	if index.UserID != input.UserID || index.RepositoryID != input.RepositoryID || index.GiteaRepoURL != input.GiteaRepoURL || index.Branch != input.Branch {
 		t.Fatalf("index did not preserve submitted repository metadata: %+v", index)
 	}
 	if got, want := len(index.RepositoryTree), 2; got != want {
@@ -36,7 +36,7 @@ func TestBuildRepositoryAnalysisPromptDescribesAgent7Scope(t *testing.T) {
 
 	required := []string{
 		"# Agent 7: AI Repository Analysis Agent",
-		"It analyzes the GitLab repository submitted by the user.",
+		"It analyzes the Gitea repository submitted by the user.",
 		"Do not analyze this exam platform's own backend repository.",
 		"Return only a JSON object in this shape:",
 		"\"repository_summary\"",

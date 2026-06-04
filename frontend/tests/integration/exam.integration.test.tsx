@@ -23,7 +23,7 @@ describe('exam integration flow', () => {
         { key: 'A', text: 'Routes are loaded from the database.' },
         { key: 'B', text: 'Handlers parse requests and call services.' },
         { key: 'C', text: 'The frontend grades the answer.' },
-        { key: 'D', text: 'GitLab creates the routes.' },
+        { key: 'D', text: 'Gitea creates the routes.' },
       ],
     }))
     fetchMock

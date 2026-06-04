@@ -19,10 +19,10 @@ func (noopAnalysisStore) SaveGeneratedQuestions(context.Context, string, []Gener
 func TestBuildCodeIndexIncludesSubmittedRepositoryContext(t *testing.T) {
 	runner := &JobRunner{store: noopAnalysisStore{}}
 	msg := AnalysisJobMessage{
-		UserID:        "user-123",
-		RepositoryID:  "repo-456",
-		GitLabRepoURL: "https://gitlab.example.com/group/project",
-		Branch:        "develop",
+		UserID:       "user-123",
+		RepositoryID: "repo-456",
+		GiteaRepoURL: "https://gitea.example.com/group/project",
+		Branch:       "develop",
 	}
 	files := []RepositoryFile{
 		{Path: "cmd/server/main.go", Size: 12, Content: "package main\n"},
@@ -34,7 +34,7 @@ func TestBuildCodeIndexIncludesSubmittedRepositoryContext(t *testing.T) {
 		t.Fatalf("buildCodeIndex returned error: %v", err)
 	}
 
-	if index.UserID != msg.UserID || index.RepositoryID != msg.RepositoryID || index.GitLabRepoURL != msg.GitLabRepoURL || index.Branch != msg.Branch {
+	if index.UserID != msg.UserID || index.RepositoryID != msg.RepositoryID || index.GiteaRepoURL != msg.GiteaRepoURL || index.Branch != msg.Branch {
 		t.Fatalf("index did not preserve submitted repository metadata: %+v", index)
 	}
 	if got, want := len(index.RepositoryTree), len(files); got != want {
@@ -50,7 +50,7 @@ func TestBuildRepositoryAnalysisPromptDescribesAgent7Scope(t *testing.T) {
 
 	required := []string{
 		"# Agent 7: AI Repository Analysis Agent",
-		"It analyzes the GitLab repository submitted by the user.",
+		"It analyzes the Gitea repository submitted by the user.",
 		"Do not analyze this exam platform's own backend repository.",
 		"Return only a JSON object in this shape:",
 		"\"repository_summary\"",
@@ -75,7 +75,7 @@ func TestBuildQuestionGenerationPromptDescribesAgent8ScopeAndOutput(t *testing.T
 
 	required := []string{
 		"# Agent 8: Runtime AI Question Generator Agent",
-		"Analyze the user's GitLab repository only.",
+		"Analyze the user's Gitea repository only.",
 		"Do not generate questions about:",
 		"this platform backend",
 		"Generate exactly 20 English-only multiple-choice questions",

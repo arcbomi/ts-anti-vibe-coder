@@ -2,7 +2,9 @@ import { createStore } from 'zustand/vanilla'
 import type { BotAccessStatus, Repository } from '@/domains/repository/types/repository.types'
 
 type RepositoryState = {
+  repositories: Repository[]
   repository: Repository | null
+  isLoadingRepositories: boolean
   isCreating: boolean
   isCheckingBotAccess: boolean
   isStartingAnalysis: boolean
@@ -11,7 +13,9 @@ type RepositoryState = {
 }
 
 type RepositoryActions = {
+  setRepositories: (repositories: Repository[]) => void
   setRepository: (repository: Repository | null) => void
+  setLoadingRepositories: (isLoadingRepositories: boolean) => void
   setCreating: (isCreating: boolean) => void
   setCheckingBotAccess: (isCheckingBotAccess: boolean) => void
   setStartingAnalysis: (isStartingAnalysis: boolean) => void
@@ -37,6 +41,7 @@ function readStoredState(): RepositoryState {
 
     return {
       ...initialState,
+      repositories: Array.isArray(parsed.repositories) ? parsed.repositories : [],
       repository: parsed.repository ?? null,
       analysisJobId: parsed.analysisJobId ?? null,
     }
@@ -51,6 +56,7 @@ function writeStoredState(state: RepositoryState) {
   sessionStorage.setItem(
     REPOSITORY_STORAGE_KEY,
     JSON.stringify({
+      repositories: state.repositories,
       repository: state.repository,
       analysisJobId: state.analysisJobId,
     }),
@@ -58,7 +64,9 @@ function writeStoredState(state: RepositoryState) {
 }
 
 const initialState: RepositoryState = {
+  repositories: [],
   repository: null,
+  isLoadingRepositories: false,
   isCreating: false,
   isCheckingBotAccess: false,
   isStartingAnalysis: false,
@@ -69,12 +77,21 @@ const initialState: RepositoryState = {
 export const repositoryStore = createStore<RepositoryStore>((set) => ({
   ...readStoredState(),
 
+  setRepositories: (repositories) =>
+    set((state) => {
+      const selectedID = state.repository?.id
+      const repository = selectedID ? repositories.find((candidate) => candidate.id === selectedID) ?? null : state.repository
+      const nextState = { ...state, repositories, repository }
+      writeStoredState(nextState)
+      return { repositories, repository }
+    }),
   setRepository: (repository) =>
     set((state) => {
       const nextState = { ...state, repository }
       writeStoredState(nextState)
       return { repository }
     }),
+  setLoadingRepositories: (isLoadingRepositories) => set({ isLoadingRepositories }),
   setCreating: (isCreating) => set({ isCreating }),
   setCheckingBotAccess: (isCheckingBotAccess) => set({ isCheckingBotAccess }),
   setStartingAnalysis: (isStartingAnalysis) => set({ isStartingAnalysis }),
@@ -86,13 +103,14 @@ export const repositoryStore = createStore<RepositoryStore>((set) => ({
       return { analysisJobId }
     }),
   setBotAccessStatus: (botAccessStatus) =>
-    set((state) => ({
-      repository: (() => {
-        const repository = state.repository ? { ...state.repository, bot_access_status: botAccessStatus } : null
-        writeStoredState({ ...state, repository })
-        return repository
-      })(),
-    })),
+    set((state) => {
+      const repository = state.repository ? { ...state.repository, bot_access_status: botAccessStatus } : null
+      const repositories = repository
+        ? state.repositories.map((candidate) => (candidate.id === repository.id ? repository : candidate))
+        : state.repositories
+      writeStoredState({ ...state, repositories, repository })
+      return { repositories, repository }
+    }),
   clearRepository: () =>
     set(() => {
       writeStoredState(initialState)

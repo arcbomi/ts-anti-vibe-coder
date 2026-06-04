@@ -1,6 +1,6 @@
 # Worker Service
 
-The worker service consumes queued GitLab repository analysis jobs and runs the long repository-reading and AI-question-generation flow outside of the API request lifecycle.
+The worker service consumes queued Gitea repository analysis jobs and runs the long repository-reading and AI-question-generation flow outside of the API request lifecycle.
 
 ## Why a queue is needed
 
@@ -15,7 +15,7 @@ Messages are JSON objects with this shape:
   "job_id": "uuid",
   "user_id": "uuid",
   "repository_id": "uuid",
-  "gitlab_repo_url": "https://gitlab.com/user/project",
+  "gitea_repo_url": "https://gitea.com/user/project",
   "branch": "main",
   "attempt": 1
 }
@@ -41,7 +41,7 @@ The worker never sends unsafe or unnecessary files to AI. It skips `.env`, `*.pe
 
 ## Retry rules
 
-Only temporary failures are retried. Examples include GitLab network errors, AI request timeouts, Redis/queue issues, and transient database errors. Permanent failures such as `BOT_ACCESS_DENIED`, `INVALID_REPOSITORY_URL`, `REPOSITORY_NOT_FOUND`, and invalid AI output are not retried.
+Only temporary failures are retried. Examples include Gitea network errors, AI request timeouts, Redis/queue issues, and transient database errors. Permanent failures such as `BOT_ACCESS_DENIED`, `INVALID_REPOSITORY_URL`, `REPOSITORY_NOT_FOUND`, and invalid AI output are not retried.
 
 The default retry policy is:
 
@@ -80,8 +80,8 @@ ANALYSIS_DEAD_LETTER_QUEUE_NAME=analysis_jobs_dead
 MAX_JOB_ATTEMPTS=3
 RETRY_DELAY_SECONDS=30
 DATABASE_URL=postgres://user:password@localhost:5432/app
-GITLAB_BASE_URL=https://gitlab.com
-GITLAB_BOT_TOKEN=xxx
+GITEA_BASE_URL=https://gitea.com
+GITEA_BOT_TOKEN=xxx
 AI_BASE_URL=https://api.openai.com
 AI_API_KEY=xxx
 AI_MODEL=gpt-4.1-mini

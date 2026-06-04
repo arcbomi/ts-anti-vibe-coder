@@ -13,7 +13,7 @@ FROM base AS build
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/api-gateway ./cmd/api-gateway \
   && CGO_ENABLED=0 GOOS=linux go build -o /out/auth-service ./cmd/auth-service \
-  && CGO_ENABLED=0 GOOS=linux go build -o /out/gitlab-reader-service ./cmd/gitlab-reader-service \
+  && CGO_ENABLED=0 GOOS=linux go build -o /out/gitea-reader-service ./cmd/gitea-reader-service \
   && CGO_ENABLED=0 GOOS=linux go build -o /out/ai-analysis-service ./cmd/ai-analysis-service \
   && CGO_ENABLED=0 GOOS=linux go build -o /out/question-service ./cmd/question-service \
   && CGO_ENABLED=0 GOOS=linux go build -o /out/exam-service ./cmd/exam-service \

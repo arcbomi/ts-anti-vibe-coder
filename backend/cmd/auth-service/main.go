@@ -36,8 +36,17 @@ func main() {
 		log.Error("token manager initialization failed", "err", err)
 		os.Exit(1)
 	}
+	tomorrowSchoolClient := auth.NewTomorrowSchoolClient(auth.TomorrowSchoolClientConfig{
+		Endpoint:        cfg.TomorrowSchoolAuthEndpoint,
+		GraphQLEndpoint: cfg.TomorrowSchoolGraphQLEndpoint,
+		GraphQLRole:     cfg.TomorrowSchoolGraphQLRole,
+		Timeout:         time.Duration(cfg.TomorrowSchoolAuthTimeoutSecs) * time.Second,
+		Referrer:        cfg.TomorrowSchoolAuthReferrer,
+		XJWTToken:       cfg.TomorrowSchoolAuthXJWTToken,
+		SessionID:       cfg.TomorrowSchoolAuthSessionID,
+	}, log)
 	authRepository := auth.NewRepository(db)
-	authService := auth.NewService(authRepository, tokenManager)
+	authService := auth.NewService(authRepository, tokenManager, tomorrowSchoolClient, log)
 	authHandler := auth.NewHandler(authService)
 	if cfg.AppEnv == "development" {
 		if err := authService.EnsureDevSeedUser(

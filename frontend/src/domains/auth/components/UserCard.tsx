@@ -8,10 +8,12 @@ type UserCardProps = {
 }
 
 export function UserCard({ user, isLoading = false, onLogout }: UserCardProps) {
+  const displayName = user.full_name?.trim() || user.name
+
   return (
     <section className="user-card" aria-label="Current user">
       <div className="user-card__identity">
-        <strong>{user.name}</strong>
+        <strong>{displayName}</strong>
         <span>{user.email}</span>
       </div>
       <Button type="button" disabled={isLoading} onClick={onLogout} className="button--secondary">

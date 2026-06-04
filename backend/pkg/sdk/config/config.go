@@ -41,9 +41,9 @@ type Config struct {
 	MaxJobAttempts              int
 	RetryDelaySeconds           int
 
-	GitLabBaseURL     string
-	GitLabBotToken    string
-	GitLabBotUsername string
+	GiteaBaseURL     string
+	GiteaBotToken    string
+	GiteaBotUsername string
 
 	AIBaseURL            string
 	AIAPIKey             string
@@ -55,9 +55,13 @@ type Config struct {
 	AuthJWTHS256Secret            string // Deprecated alias for JWTSecret.
 	JWTAccessTokenTTLMinutes      int
 	JWTRefreshTokenTTLDays        int
-	TomorrowSchoolSSOClientID     string
-	TomorrowSchoolSSOClientSecret string
-	TomorrowSchoolSSORedirectURL  string
+	TomorrowSchoolAuthEndpoint    string
+	TomorrowSchoolGraphQLEndpoint string
+	TomorrowSchoolGraphQLRole     string
+	TomorrowSchoolAuthTimeoutSecs int
+	TomorrowSchoolAuthReferrer    string
+	TomorrowSchoolAuthXJWTToken   string
+	TomorrowSchoolAuthSessionID   string
 
 	ExamTimezone    string
 	ExamOpenDOW     string
@@ -159,6 +163,10 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid JWT_REFRESH_TOKEN_TTL_DAYS: %w", err)
 	}
+	tomorrowAuthTimeout, err := parseInt(get("TOMORROW_SCHOOL_AUTH_TIMEOUT_SECONDS"), 10)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid TOMORROW_SCHOOL_AUTH_TIMEOUT_SECONDS: %w", err)
+	}
 
 	databaseURL := firstNonEmpty(get("DATABASE_URL"), get("POSTGRES_DSN"))
 	queueURL := get("QUEUE_URL")
@@ -188,9 +196,9 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 		MaxJobAttempts:              maxJobAttempts,
 		RetryDelaySeconds:           retryDelaySeconds,
 
-		GitLabBaseURL:     firstNonEmpty(get("GITLAB_BASE_URL"), "https://gitlab.com"),
-		GitLabBotToken:    get("GITLAB_BOT_TOKEN"),
-		GitLabBotUsername: get("GITLAB_BOT_USERNAME"),
+		GiteaBaseURL:     firstNonEmpty(get("GITEA_BASE_URL"), "https://01.tomorrow-school.ai/git"),
+		GiteaBotToken:    get("GITEA_BOT_TOKEN"),
+		GiteaBotUsername: get("GITEA_BOT_USERNAME"),
 
 		AIBaseURL:            firstNonEmpty(get("AI_BASE_URL"), "https://api.openai.com"),
 		AIAPIKey:             get("AI_API_KEY"),
@@ -202,9 +210,13 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 		AuthJWTHS256Secret:            jwtSecret,
 		JWTAccessTokenTTLMinutes:      jwtAccessTTL,
 		JWTRefreshTokenTTLDays:        jwtRefreshTTL,
-		TomorrowSchoolSSOClientID:     get("TOMORROW_SCHOOL_SSO_CLIENT_ID"),
-		TomorrowSchoolSSOClientSecret: get("TOMORROW_SCHOOL_SSO_CLIENT_SECRET"),
-		TomorrowSchoolSSORedirectURL:  get("TOMORROW_SCHOOL_SSO_REDIRECT_URL"),
+		TomorrowSchoolAuthEndpoint:    firstNonEmpty(get("TOMORROW_SCHOOL_AUTH_ENDPOINT"), "https://01.tomorrow-school.ai/api/auth/signin"),
+		TomorrowSchoolGraphQLEndpoint: firstNonEmpty(get("TOMORROW_SCHOOL_GRAPHQL_WS_ENDPOINT"), "wss://01.tomorrow-school.ai/api/graphql-engine/v1/graphql"),
+		TomorrowSchoolGraphQLRole:     firstNonEmpty(get("TOMORROW_SCHOOL_GRAPHQL_ROLE"), "user"),
+		TomorrowSchoolAuthTimeoutSecs: tomorrowAuthTimeout,
+		TomorrowSchoolAuthReferrer:    firstNonEmpty(get("TOMORROW_SCHOOL_AUTH_REFERRER"), "https://01.tomorrow-school.ai/?show-password=1"),
+		TomorrowSchoolAuthXJWTToken:   firstNonEmpty(get("TOMORROW_SCHOOL_AUTH_X_JWT_TOKEN"), "undefined"),
+		TomorrowSchoolAuthSessionID:   get("TOMORROW_SCHOOL_AUTH_SESSION_ID"),
 
 		ExamTimezone:    firstNonEmpty(get("EXAM_TIMEZONE"), "Asia/Shanghai"),
 		ExamOpenDOW:     firstNonEmpty(get("EXAM_OPEN_DOW"), "Friday"),
@@ -248,7 +260,7 @@ func defaultPort(serviceName string) int {
 		return 8080
 	case "auth-service":
 		return 8081
-	case "gitlab-reader-service":
+	case "gitea-reader-service":
 		return 8082
 	case "ai-analysis-service":
 		return 8083

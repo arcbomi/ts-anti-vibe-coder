@@ -14,7 +14,7 @@ import (
 	"backend/pkg/sdk/aiclient"
 	"backend/pkg/sdk/config"
 	"backend/pkg/sdk/database"
-	"backend/pkg/sdk/gitlabclient"
+	"backend/pkg/sdk/giteaclient"
 	"backend/pkg/sdk/logger"
 	"backend/pkg/sdk/queue"
 )
@@ -46,9 +46,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	gitlabClient := gitlabclient.New(cfg.GitLabBaseURL, cfg.GitLabBotToken)
+	giteaClient := giteaclient.New(cfg.GiteaBaseURL, cfg.GiteaBotToken)
 	aiClient := aiclient.New(cfg.AIBaseURL, cfg.AIAPIKey, cfg.AIModel, aiclient.WithTimeout(time.Duration(cfg.AITimeoutSeconds)*time.Second))
-	runner := worker.NewJobRunner(store, gitlabClient, aiClient, log)
+	runner := worker.NewJobRunner(store, giteaClient, aiClient, log)
 	handler := worker.NewHandler(runner, store, log)
 	consumer := worker.NewConsumer(redisClient, handler, worker.ConsumerConfig{
 		QueueName:       cfg.AnalysisQueueName,

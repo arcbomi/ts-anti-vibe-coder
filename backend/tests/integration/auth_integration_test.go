@@ -23,7 +23,7 @@ func TestAuthIntegrationLoginMeAndInvalidLogin(t *testing.T) {
 		t.Fatalf("register status=%d body=%s", registerRes.Code, registerRes.Body.String())
 	}
 
-	loginBody := []byte(`{"email":"ada@example.com","password":"correct-password"}`)
+	loginBody := []byte(`{"credential":"ada@example.com","password":"correct-password"}`)
 	loginReq := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
 	loginRes := httptest.NewRecorder()
@@ -36,11 +36,19 @@ func TestAuthIntegrationLoginMeAndInvalidLogin(t *testing.T) {
 		t.Fatalf("login envelope err=%v env=%+v", err, loginEnv)
 	}
 	var loginData struct {
-		AccessToken string                           `json:"access_token"`
-		User        struct{ ID, Email, Name string } `json:"user"`
+		AccessToken string `json:"access_token"`
+		User        struct {
+			ID       string `json:"id"`
+			Email    string `json:"email"`
+			Name     string `json:"name"`
+			FullName string `json:"full_name"`
+		} `json:"user"`
 	}
 	if err := json.Unmarshal(loginEnv.Data, &loginData); err != nil || loginData.AccessToken == "" || loginData.User.Email != "ada@example.com" {
 		t.Fatalf("login data err=%v data=%+v", err, loginData)
+	}
+	if loginData.User.FullName != "Integration User" {
+		t.Fatalf("login full_name=%q want Integration User", loginData.User.FullName)
 	}
 
 	meReq := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
@@ -56,7 +64,7 @@ func TestAuthIntegrationLoginMeAndInvalidLogin(t *testing.T) {
 		t.Fatalf("/me did not return current user envelope: %s", meRes.Body.String())
 	}
 
-	badReq := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader([]byte(`{"email":"ada@example.com","password":"wrong-password"}`)))
+	badReq := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader([]byte(`{"credential":"ada@example.com","password":"wrong-password"}`)))
 	badReq.Header.Set("Content-Type", "application/json")
 	badRes := httptest.NewRecorder()
 	app.router.ServeHTTP(badRes, badReq)

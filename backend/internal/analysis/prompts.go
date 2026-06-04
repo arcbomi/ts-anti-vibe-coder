@@ -11,9 +11,9 @@ This agent is for the exam platform's AI analysis service.
 
 It does not analyze the backend code of this platform itself.
 
-It analyzes the GitLab repository submitted by the user.
+It analyzes the Gitea repository submitted by the user.
 
-The user will enter a GitLab repository URL, add the platform GitLab userbot as a collaborator, and click "I already added the bot."
+The user will enter a Gitea repository URL, add the platform Gitea userbot as a collaborator, and click "I already added the bot."
 
 After the backend confirms that the bot has access, this agent receives the user's repository code and analyzes it for exam question generation.
 
@@ -21,13 +21,13 @@ The purpose is to understand the user's project well enough to generate question
 
 ## Task
 
-Analyze the user's GitLab repository and understand how the submitted project works.
+Analyze the user's Gitea repository and understand how the submitted project works.
 
 This analysis will be used by the exam service to generate 20 English-only A/B/C/D questions.
 
 ## Responsibilities
 
-- Analyze the GitLab repository submitted by the user.
+- Analyze the Gitea repository submitted by the user.
 - Do not analyze this exam platform's own backend repository.
 - Detect the submitted project's language.
 - Detect the submitted project's framework.
@@ -45,7 +45,7 @@ The JSON payload below contains:
 
 - User ID
 - Repository ID
-- GitLab repository URL
+- Gitea repository URL
 - Branch name
 - Repository file tree
 - Selected source files from the user's repository

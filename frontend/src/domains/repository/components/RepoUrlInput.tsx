@@ -20,11 +20,11 @@ export function RepoUrlInput({ isLoading = false, onSubmit }: RepoUrlInputProps)
       }}
     >
       <label className="field">
-        <span>GitLab repository URL</span>
+        <span>Gitea repository URL</span>
         <input
           type="url"
           value={url}
-          placeholder="https://gitlab.com/group/project"
+          placeholder="https://gitea.com/group/project"
           disabled={isLoading}
           required
           onChange={(event) => setUrl(event.target.value)}

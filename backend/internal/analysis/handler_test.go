@@ -33,7 +33,7 @@ func TestHandlerGenerateQuestionsRunsAnalysisFlow(t *testing.T) {
 	body := bytes.NewBufferString(`{
 		"user_id":"user-1",
 		"repository_id":"repo-1",
-		"gitlab_repository_url":"https://gitlab.example.com/group/project",
+		"gitea_repository_url":"https://gitea.example.com/group/project",
 		"branch_name":"main",
 		"repository_file_tree":["cmd/server/main.go"],
 		"selected_source_files":[{"path":"cmd/server/main.go","size":12,"content":"package main\n"}]

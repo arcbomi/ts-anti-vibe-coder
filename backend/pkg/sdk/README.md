@@ -1,6 +1,6 @@
 # Backend Shared SDK
 
-This SDK is shared by all backend Go microservices in the project. It centralizes reusable infrastructure code so services such as `api-gateway`, `auth-service`, `gitlab-reader-service`, `ai-analysis-service`, `question-service`, `exam-service`, and `worker-service` do not duplicate common plumbing.
+This SDK is shared by all backend Go microservices in the project. It centralizes reusable infrastructure code so services such as `api-gateway`, `auth-service`, `gitea-reader-service`, `ai-analysis-service`, `question-service`, `exam-service`, and `worker-service` do not duplicate common plumbing.
 
 The SDK should stay focused on reusable infrastructure concerns and must not contain service-specific business logic.
 
@@ -13,7 +13,7 @@ The SDK should stay focused on reusable infrastructure concerns and must not con
 - `queue`: publishes and consumes Redis-backed long-running analysis jobs, including retries and a dead-letter queue.
 - `middleware`: provides request ID, request logging, panic recovery, CORS, and bearer-token placeholder middleware.
 - `httpclient`: sends JSON HTTP requests with timeouts, bearer tokens, and response decoding.
-- `gitlabclient`: checks bot repository access and reads safe repository metadata, tree entries, and file contents using the server GitLab bot token.
+- `giteaclient`: checks bot repository access and reads safe repository metadata, tree entries, and file contents using the server Gitea bot token.
 - `aiclient`: sends prompts to an OpenAI-compatible AI model API and parses JSON responses.
 
 Services should import SDK packages directly, for example:

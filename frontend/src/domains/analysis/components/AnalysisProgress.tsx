@@ -3,8 +3,8 @@ import type { AnalysisJob } from '@/domains/analysis/types/analysis.types'
 
 const statusMessages: Record<AnalysisJob['status'], string> = {
   pending: 'Analysis job is waiting to start.',
-  checking_bot_access: 'Checking whether the GitLab userbot can access the repository.',
-  reading_repository: 'Reading repository files from GitLab.',
+  checking_bot_access: 'Checking whether the Gitea userbot can access the repository.',
+  reading_repository: 'Reading repository files from Gitea.',
   indexing_code: 'Indexing important source files.',
   analyzing_code: 'AI is analyzing how the program works.',
   generating_questions: 'AI is generating 20 English-only exam questions.',
@@ -47,7 +47,7 @@ export function AnalysisProgress({ job }: AnalysisProgressProps) {
       {isFailed && (
         <p role="alert">
           {job.errorMessage ??
-            'The GitLab userbot may not have access, or the repository could not be read.'}
+            'The Gitea userbot may not have access, or the repository could not be read.'}
         </p>
       )}
     </div>

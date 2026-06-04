@@ -23,13 +23,13 @@ This agent will run inside the platform service later.
 
 It belongs to the AI analysis / exam generation service.
 
-Its job is to analyze the user's GitLab repository, not the platform backend repository itself.
+Its job is to analyze the user's Gitea repository, not the platform backend repository itself.
 
 The generated questions are used in the offline Friday exam to verify whether the user really understands their own project code.
 
 ## Important Scope Rule
 
-Analyze the user's GitLab repository only.
+Analyze the user's Gitea repository only.
 
 Do not generate questions about:
 - this platform backend
@@ -61,7 +61,7 @@ Use this input to generate questions about the user's actual codebase behavior.
 
 ## Task
 
-Generate exactly 20 English-only multiple-choice questions based on the user's GitLab repository analysis.
+Generate exactly 20 English-only multiple-choice questions based on the user's Gitea repository analysis.
 
 The questions must test whether the user understands how their program actually works.
 

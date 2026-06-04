@@ -9,7 +9,7 @@ It is responsible for:
 - Showing failed/completed state
 
 It is not responsible for:
-- GitLab repository connection
+- Gitea repository connection
 - Question rendering
 - Exam taking
 - Backend grading

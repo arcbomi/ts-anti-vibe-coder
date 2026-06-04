@@ -79,7 +79,7 @@ func TestGetExamIncludesExamSafeQuestions(t *testing.T) {
 			OptionA:        "It parses input.",
 			OptionB:        "It writes CSS.",
 			OptionC:        "It bypasses services.",
-			OptionD:        "It mutates GitLab.",
+			OptionD:        "It mutates Gitea.",
 			CorrectOption:  OptionA,
 			Explanation:    "Handlers parse requests before calling services.",
 			Difficulty:     "medium",

@@ -67,7 +67,7 @@ func BuildCodeIndex(input RepositoryInput) CodeIndex {
 	index := CodeIndex{
 		UserID:         input.UserID,
 		RepositoryID:   input.RepositoryID,
-		GitLabRepoURL:  input.GitLabRepoURL,
+		GiteaRepoURL:   input.GiteaRepoURL,
 		Branch:         branch,
 		RepositoryTree: make([]string, 0, len(input.RepositoryTree)+len(input.Files)),
 		SelectedFiles:  make([]FileSummary, 0, len(input.Files)),

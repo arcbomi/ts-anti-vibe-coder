@@ -7,11 +7,11 @@ Current features:
 - Logout
 - Current user session
 - Auth state management
+- Full-name display from the authenticated backend user profile
 
 Future plan:
 - Support Tomorrow School account authentication.
-- Support Tomorrow School internal SSO.
-- Allow students to log in with their Tomorrow School account
+- Allow students to log in with either their Tomorrow School email or username.
 
 Rules:
 - This domain should not depend on repository, analysis, question, or exam domains.

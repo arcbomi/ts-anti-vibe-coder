@@ -11,7 +11,7 @@ const (
 	ErrCodeBotAccessDenied      = "BOT_ACCESS_DENIED"
 	ErrCodeInvalidRepositoryURL = "INVALID_REPOSITORY_URL"
 	ErrCodeRepositoryNotFound   = "REPOSITORY_NOT_FOUND"
-	ErrCodeGitLabTemporary      = "GITLAB_TEMPORARY_ERROR"
+	ErrCodeGiteaTemporary       = "GITEA_TEMPORARY_ERROR"
 	ErrCodeAITimeout            = "AI_TIMEOUT"
 	ErrCodeAIOutputInvalid      = "AI_OUTPUT_INVALID"
 	ErrCodeDatabase             = "DATABASE_ERROR"
