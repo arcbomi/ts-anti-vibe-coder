@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package integration
 
 import (
@@ -11,8 +14,10 @@ import (
 	"backend/internal/auth"
 	"backend/internal/exam"
 	gitlabsvc "backend/internal/gitlab"
+	"backend/internal/question"
 	"backend/internal/worker"
 	"backend/pkg/sdk/aiclient"
+	"backend/pkg/sdk/authn"
 	"backend/pkg/sdk/gitlabclient"
 	"backend/pkg/sdk/logger"
 	"backend/pkg/sdk/middleware"
@@ -40,7 +45,11 @@ func newTestApp(t *testing.T) *testApp {
 	t.Cleanup(fakeAI.Close)
 
 	log := logger.New("integration-test")
-	authTokens, err := auth.NewTokenManager("integration-test-jwt-secret", time.Hour)
+	authTokens, err := auth.NewTokenManager(integrationJWTSecret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validator, err := authn.NewValidator(integrationJWTSecret)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,50 +58,23 @@ func newTestApp(t *testing.T) *testApp {
 	publisher := queue.NewProducer(redisClient)
 	gitlabService := gitlabsvc.NewService(gitlabsvc.NewPostgresStore(db), gitlabsvc.NewValidator(fakeGitLab.URL()), gitlabClient, publisher, gitlabsvc.NewFileFilter(0), log)
 	examService := exam.NewService(exam.NewPostgresStore(db), 70, "Friday")
+	questionService := question.NewService(question.NewPostgresStore(db))
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID())
 	auth.NewHandler(authService).RegisterRoutes(r)
-	r.Mount("/", gitlabsvc.NewHandler(gitlabService).Routes())
-	r.Mount("/", exam.NewRouter(exam.NewHandler(examService)))
-	r.Get("/analysis-jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
-		var resp struct {
-			Success bool `json:"success"`
-			Data    any  `json:"data"`
-			Error   any  `json:"error"`
-		}
-		job := map[string]any{}
-		var completedAt sql.NullTime
-		var errorMessage sql.NullString
-		var errorCode sql.NullString
-		row := db.QueryRowContext(r.Context(), `SELECT id::text, user_id::text, repository_id::text, status, error_message, error_code, created_at, completed_at FROM analysis_jobs WHERE id = $1`, chi.URLParam(r, "id"))
-		var id, userID, repositoryID, status string
-		var createdAt time.Time
-		if err := row.Scan(&id, &userID, &repositoryID, &status, &errorMessage, &errorCode, &createdAt, &completedAt); err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			_ = json.NewEncoder(w).Encode(map[string]any{"success": false, "data": nil, "error": map[string]string{"code": "ANALYSIS_JOB_NOT_FOUND", "message": "Analysis job not found."}})
-			return
-		}
-		job["id"] = id
-		job["analysis_job_id"] = id
-		job["user_id"] = userID
-		job["repository_id"] = repositoryID
-		job["status"] = status
-		job["created_at"] = createdAt
-		if completedAt.Valid {
-			job["completed_at"] = completedAt.Time
-		}
-		if errorMessage.Valid {
-			job["error_message"] = errorMessage.String
-		}
-		if errorCode.Valid {
-			job["error_code"] = errorCode.String
-		}
-		resp.Success = true
-		resp.Data = job
-		resp.Error = nil
-		_ = json.NewEncoder(w).Encode(resp)
-	})
+	gitlabRoutes := gitlabsvc.NewHandler(gitlabService).Routes()
+	examRoutes := exam.NewRouter(exam.NewHandler(examService), validator)
+	questionRoutes := question.NewRouter(question.NewHandler(questionService, "internal-test-token"), validator)
+
+	r.With(middleware.RequireJWTIdentity(validator)).Handle("/repositories", gitlabRoutes)
+	r.With(middleware.RequireJWTIdentity(validator)).Handle("/repositories/*", gitlabRoutes)
+	r.With(middleware.RequireJWTIdentity(validator)).Handle("/analysis-jobs/{id}", gitlabRoutes)
+	r.Handle("/analysis-jobs/{id}/questions", questionRoutes)
+	r.Handle("/exams", examRoutes)
+	r.Handle("/exams/*", examRoutes)
+	r.Handle("/questions/generated", questionRoutes)
+	r.Handle("/internal/exams/{examId}/answer-key", questionRoutes)
 
 	return &testApp{db: db, redis: redisClient, gitlab: fakeGitLab, ai: fakeAI, router: r}
 }

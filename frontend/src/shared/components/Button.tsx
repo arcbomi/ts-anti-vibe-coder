@@ -1,5 +1,9 @@
 import type { ButtonHTMLAttributes } from 'react'
 
-export function Button(props: ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button {...props} />
+function mergeClassName(...parts: Array<string | undefined>) {
+  return parts.filter(Boolean).join(' ')
+}
+
+export function Button({ className, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return <button {...props} className={mergeClassName('button', className)} />
 }

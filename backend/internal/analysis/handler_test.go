@@ -29,8 +29,9 @@ func TestHandlerGenerateQuestionsRunsAnalysisFlow(t *testing.T) {
 		json.RawMessage(`{"repository_summary":"API service","project_type":"backend","languages":["Go"],"frameworks":["net/http"],"entry_points":[],"important_modules":[],"code_flows":[],"question_topics":[]}`),
 		questionsEnvelope(t),
 	}}
-	handler := NewHandler(NewService(ai)).Routes()
+	handler := NewHandler(NewService(ai), "internal-test-token").Routes()
 	body := bytes.NewBufferString(`{
+		"user_id":"user-1",
 		"repository_id":"repo-1",
 		"gitlab_repository_url":"https://gitlab.example.com/group/project",
 		"branch_name":"main",
@@ -38,8 +39,7 @@ func TestHandlerGenerateQuestionsRunsAnalysisFlow(t *testing.T) {
 		"selected_source_files":[{"path":"cmd/server/main.go","size":12,"content":"package main\n"}]
 	}`)
 	req := httptest.NewRequest(http.MethodPost, "/analysis/generate-questions", body)
-	req.Header.Set("Authorization", "Bearer token")
-	req.Header.Set("X-User-Id", "user-1")
+	req.Header.Set("X-Internal-Service-Token", "internal-test-token")
 	res := httptest.NewRecorder()
 
 	handler.ServeHTTP(res, req)
@@ -52,6 +52,18 @@ func TestHandlerGenerateQuestionsRunsAnalysisFlow(t *testing.T) {
 	}
 	if !bytes.Contains(res.Body.Bytes(), []byte(`"questions"`)) {
 		t.Fatalf("response did not include generated questions: %s", res.Body.String())
+	}
+}
+
+func TestHandlerRejectsMissingInternalToken(t *testing.T) {
+	handler := NewHandler(NewService(&fakeAIClient{}), "internal-test-token").Routes()
+	req := httptest.NewRequest(http.MethodPost, "/analysis/generate-questions", bytes.NewBufferString(`{}`))
+	res := httptest.NewRecorder()
+
+	handler.ServeHTTP(res, req)
+
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, body = %s", res.Code, res.Body.String())
 	}
 }
 

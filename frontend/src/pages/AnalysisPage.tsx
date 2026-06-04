@@ -2,7 +2,7 @@ import { AnalysisProgressSection } from '@/domains/analysis/pageSection/Analysis
 
 export function AnalysisPage() {
   return (
-    <main>
+    <main className="page-shell">
       <AnalysisProgressSection />
     </main>
   )

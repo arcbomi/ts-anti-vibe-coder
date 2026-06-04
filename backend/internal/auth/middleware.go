@@ -3,8 +3,8 @@ package auth
 import (
 	"context"
 	"net/http"
-	"strings"
 
+	"backend/pkg/sdk/authn"
 	sdkerrors "backend/pkg/sdk/errors"
 )
 
@@ -38,9 +38,5 @@ func CurrentUserFromContext(ctx context.Context) (PublicUser, bool) {
 
 // BearerToken extracts a bearer token from the Authorization header.
 func BearerToken(r *http.Request) string {
-	header := strings.TrimSpace(r.Header.Get("Authorization"))
-	if !strings.HasPrefix(strings.ToLower(header), "bearer ") {
-		return ""
-	}
-	return strings.TrimSpace(header[len("Bearer "):])
+	return authn.BearerToken(r)
 }

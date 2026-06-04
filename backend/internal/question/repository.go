@@ -17,8 +17,9 @@ var ErrNotFound = errors.New("not found")
 type Store interface {
 	EnsureSchema(ctx context.Context) error
 	SaveGeneratedQuestions(ctx context.Context, analysisJobID string, questions []Question) (int, error)
-	GetQuestionsByAnalysisJob(ctx context.Context, analysisJobID string) ([]Question, error)
-	GetQuestionsByExam(ctx context.Context, examID string) ([]Question, error)
+	GetQuestionsByAnalysisJob(ctx context.Context, userID string, analysisJobID string) ([]Question, error)
+	GetQuestionsByExam(ctx context.Context, userID string, examID string) ([]Question, error)
+	GetQuestionsByExamForInternal(ctx context.Context, examID string) ([]Question, error)
 	GetExamOptionMappings(ctx context.Context, examID string) ([]ExamQuestionOption, error)
 	SaveExamOptionMappings(ctx context.Context, examID string, mappings []ExamQuestionOption) error
 }
@@ -53,6 +54,7 @@ func (s *PostgresStore) EnsureSchema(ctx context.Context) error {
 			analysis_job_id UUID NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 		)`,
+		`ALTER TABLE exams ADD COLUMN IF NOT EXISTS user_id UUID`,
 		`CREATE INDEX IF NOT EXISTS idx_exams_analysis_job_id ON exams(analysis_job_id)`,
 		`CREATE TABLE IF NOT EXISTS exam_question_options (
 			id UUID PRIMARY KEY,
@@ -98,27 +100,31 @@ func (s *PostgresStore) SaveGeneratedQuestions(ctx context.Context, analysisJobI
 	})
 }
 
-func (s *PostgresStore) GetQuestionsByAnalysisJob(ctx context.Context, analysisJobID string) ([]Question, error) {
-	query := `SELECT id, analysis_job_id, question, option_a, option_b, option_c, option_d, correct_option, explanation, difficulty, source_file_path, created_at
-		FROM questions WHERE analysis_job_id = $1 ORDER BY created_at ASC, id ASC`
-	return s.scanQuestions(ctx, query, analysisJobID)
+func (s *PostgresStore) GetQuestionsByAnalysisJob(ctx context.Context, userID string, analysisJobID string) ([]Question, error) {
+	query := `SELECT q.id, q.analysis_job_id, q.question, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option, q.explanation, q.difficulty, q.source_file_path, q.created_at
+		FROM questions q
+		JOIN analysis_jobs aj ON aj.id = q.analysis_job_id
+		WHERE q.analysis_job_id = $1 AND aj.user_id = $2
+		ORDER BY q.created_at ASC, q.id ASC`
+	return s.scanQuestions(ctx, query, analysisJobID, userID)
 }
 
-func (s *PostgresStore) GetQuestionsByExam(ctx context.Context, examID string) ([]Question, error) {
+func (s *PostgresStore) GetQuestionsByExam(ctx context.Context, userID string, examID string) ([]Question, error) {
+	query := `SELECT q.id, q.analysis_job_id, q.question, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option, q.explanation, q.difficulty, q.source_file_path, q.created_at
+		FROM questions q
+		JOIN exams e ON e.analysis_job_id = q.analysis_job_id
+		WHERE e.id = $1 AND e.user_id = $2
+		ORDER BY q.created_at ASC, q.id ASC`
+	return s.scanQuestions(ctx, query, examID, userID)
+}
+
+func (s *PostgresStore) GetQuestionsByExamForInternal(ctx context.Context, examID string) ([]Question, error) {
 	query := `SELECT q.id, q.analysis_job_id, q.question, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option, q.explanation, q.difficulty, q.source_file_path, q.created_at
 		FROM questions q
 		JOIN exams e ON e.analysis_job_id = q.analysis_job_id
 		WHERE e.id = $1
 		ORDER BY q.created_at ASC, q.id ASC`
-	questions, err := s.scanQuestions(ctx, query, examID)
-	if err == nil {
-		return questions, nil
-	}
-	if !errors.Is(err, ErrNotFound) {
-		return nil, err
-	}
-	// MVP fallback: allow examId to be the analysis_job_id while the Exam Service schema is still being built.
-	return s.GetQuestionsByAnalysisJob(ctx, examID)
+	return s.scanQuestions(ctx, query, examID)
 }
 
 func (s *PostgresStore) GetExamOptionMappings(ctx context.Context, examID string) ([]ExamQuestionOption, error) {

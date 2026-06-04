@@ -25,46 +25,37 @@ export function ExamResultSection({ examId: examIdProp }: ExamResultSectionProps
   if (!result) return <LoadingState label="Preparing exam result..." />
 
   return (
-    <section style={{ display: 'grid', gap: '1.5rem', maxWidth: '48rem', margin: '0 auto', padding: '2rem 1rem' }}>
-      <header style={{ display: 'grid', gap: '0.75rem' }}>
-        <p style={{ margin: 0, color: result.passed ? '#047857' : '#b91c1c', fontWeight: 700 }}>
+    <section className="page-shell section-stack">
+      <header className="section-stack">
+        <p className={result.passed ? 'eyebrow eyebrow--success' : 'eyebrow eyebrow--danger'}>
           {result.passed
             ? 'Passed — you demonstrated understanding of this repository.'
             : 'Failed — review the repository and try again later.'}
         </p>
-        <h1 style={{ margin: 0 }}>Exam result</h1>
+        <h1>Exam result</h1>
       </header>
 
       {error ? <ErrorState message={error} /> : null}
 
       <Card>
-        <div
-          style={{
-            display: 'grid',
-            gap: '1rem',
-            padding: '1.25rem',
-            border: '1px solid #e5e7eb',
-            borderRadius: '1rem',
-            background: '#ffffff',
-          }}
-        >
-          <div>
-            <span style={{ color: '#6b7280' }}>Score</span>
-            <div style={{ fontSize: '2rem', fontWeight: 800 }}>{result.score}</div>
+        <div className="metric-grid">
+          <div className="metric">
+            <span className="metric__label">Score</span>
+            <div className="metric__value metric__value--large">{result.score}</div>
           </div>
-          <div>
-            <span style={{ color: '#6b7280' }}>Correct answers</span>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+          <div className="metric">
+            <span className="metric__label">Correct answers</span>
+            <div className="metric__value">
               {result.correctCount} / {result.totalQuestions}
             </div>
           </div>
-          <div>
-            <span style={{ color: '#6b7280' }}>Passing score</span>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>{result.passingScore}</div>
+          <div className="metric">
+            <span className="metric__label">Passing score</span>
+            <div className="metric__value">{result.passingScore}</div>
           </div>
-          <div>
-            <span style={{ color: '#6b7280' }}>Status</span>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700, textTransform: 'capitalize' }}>{result.status}</div>
+          <div className="metric">
+            <span className="metric__label">Status</span>
+            <div className="metric__value metric__value--caps">{result.status}</div>
           </div>
         </div>
       </Card>

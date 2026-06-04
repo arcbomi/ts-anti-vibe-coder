@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package integration
 
 import (
@@ -15,6 +18,8 @@ import (
 	"backend/pkg/sdk/database"
 )
 
+const integrationJWTSecret = "integration-test-jwt-secret"
+
 func openTestDatabase(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
@@ -22,11 +27,11 @@ func openTestDatabase(t *testing.T) *sql.DB {
 		dsn = strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	}
 	if dsn == "" {
-		t.Skip("TEST_DATABASE_URL or DATABASE_URL is required for PostgreSQL integration tests")
+		t.Fatal("TEST_DATABASE_URL or DATABASE_URL is required for PostgreSQL integration tests")
 	}
 	db, err := database.Connect(dsn)
 	if err != nil {
-		t.Skipf("PostgreSQL integration database is unavailable: %v", err)
+		t.Fatalf("PostgreSQL integration database is unavailable: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	resetTestDatabase(t, db)
@@ -69,7 +74,7 @@ func resetTestDatabase(t *testing.T, db *sql.DB) {
 
 func createIntegrationUser(t *testing.T, db *sql.DB, email string) (userID string, token string) {
 	t.Helper()
-	tm, err := auth.NewTokenManager("integration-test-jwt-secret", 2_000_000_000_000)
+	tm, err := auth.NewTokenManager(integrationJWTSecret, 2_000_000_000_000)
 	if err != nil {
 		t.Fatal(err)
 	}

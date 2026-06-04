@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 import { LoginPage } from '../../src/pages/LoginPage'
 
@@ -25,7 +25,14 @@ describe('auth integration flow', () => {
       error: null,
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
 
-    render(<MemoryRouter><LoginPage /></MemoryRouter>)
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/dashboard" element={<div>Dashboard</div>} />
+        </Routes>
+      </MemoryRouter>,
+    )
 
     await userEvent.type(screen.getByLabelText(/email/i), 'student@example.com')
     await userEvent.type(screen.getByLabelText(/password/i), 'correct-password')
@@ -36,6 +43,6 @@ describe('auth integration flow', () => {
       expect.objectContaining({ method: 'POST' }),
     ))
     expect(localStorage.getItem('auth_token')).toBe('jwt-from-backend')
-    await waitFor(() => expect(window.location.pathname).toBe('/dashboard'))
+    expect(await screen.findByText('Dashboard')).toBeTruthy()
   })
 })

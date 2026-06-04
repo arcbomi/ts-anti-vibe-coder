@@ -14,21 +14,10 @@ export function ExamOption({ optionKey, text, selected, disabled = false, onSele
     <Button
       type="button"
       disabled={disabled}
-      aria-pressed={selected}
+      role="radio"
+      aria-checked={selected}
       onClick={() => onSelect(optionKey)}
-      style={{
-        width: '100%',
-        display: 'flex',
-        gap: '0.75rem',
-        alignItems: 'flex-start',
-        padding: '0.75rem 1rem',
-        border: selected ? '2px solid #2563eb' : '1px solid #d1d5db',
-        borderRadius: '0.75rem',
-        background: selected ? '#eff6ff' : '#ffffff',
-        color: '#111827',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        textAlign: 'left',
-      }}
+      className={selected ? 'exam-option exam-option--selected' : 'exam-option'}
     >
       <strong aria-hidden="true">{optionKey}</strong>
       <span>{text}</span>

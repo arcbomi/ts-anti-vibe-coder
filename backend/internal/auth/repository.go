@@ -70,6 +70,27 @@ WHERE id = $1`
 	return user, err
 }
 
+func (r *Repository) UpdateUserForDevSeed(ctx context.Context, user User) (User, error) {
+	if r == nil || r.db == nil {
+		return User{}, fmt.Errorf("auth repository database is nil")
+	}
+
+	query := `
+UPDATE users
+SET name = $2, password_hash = $3, updated_at = now()
+WHERE email = $1
+RETURNING id, email, name, password_hash, auth_provider, created_at, updated_at`
+	updated, err := scanUser(r.db.QueryRowContext(ctx, query,
+		user.Email,
+		user.Name,
+		user.PasswordHash,
+	))
+	if errors.Is(err, sql.ErrNoRows) {
+		return User{}, ErrUserNotFound
+	}
+	return updated, err
+}
+
 type rowScanner interface {
 	Scan(dest ...any) error
 }

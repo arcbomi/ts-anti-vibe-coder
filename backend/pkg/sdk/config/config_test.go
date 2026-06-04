@@ -16,6 +16,7 @@ func TestLoadReadsSharedEnvironment(t *testing.T) {
 	t.Setenv("AI_BASE_URL", "https://ai.example.com")
 	t.Setenv("AI_API_KEY", "ai-key")
 	t.Setenv("AI_MODEL", "model")
+	t.Setenv("INTERNAL_SERVICE_TOKEN", "internal-token")
 	t.Setenv("JWT_SECRET", "jwt-secret")
 
 	cfg := Load()
@@ -40,6 +41,9 @@ func TestLoadReadsSharedEnvironment(t *testing.T) {
 	}
 	if cfg.AIBaseURL != "https://ai.example.com" || cfg.AIAPIKey != "ai-key" || cfg.AIModel != "model" {
 		t.Fatalf("ai config not loaded: %#v", cfg)
+	}
+	if cfg.InternalServiceToken != "internal-token" {
+		t.Fatalf("internal service token not loaded: %#v", cfg)
 	}
 	if cfg.JWTSecret != "jwt-secret" || cfg.AuthJWTHS256Secret != cfg.JWTSecret {
 		t.Fatalf("jwt aliases not loaded: %#v", cfg)
@@ -76,5 +80,15 @@ func TestLoadFromEnvRejectsInvalidIntegerValues(t *testing.T) {
 	_, err := LoadFromEnv("worker-service")
 	if err == nil {
 		t.Fatal("LoadFromEnv returned nil error for invalid REDIS_DB")
+	}
+}
+
+func TestLoadFromEnvDefaultsExamOpenDOWToFriday(t *testing.T) {
+	cfg, err := LoadFromEnv("exam-service")
+	if err != nil {
+		t.Fatalf("LoadFromEnv returned error: %v", err)
+	}
+	if cfg.ExamOpenDOW != "Friday" {
+		t.Fatalf("ExamOpenDOW = %q, want Friday", cfg.ExamOpenDOW)
 	}
 }

@@ -16,6 +16,7 @@ export function AnalysisStatusBadge({ status }: { status: AnalysisJobStatus }) {
   return (
     <span aria-label={`Analysis status: ${statusLabels[status]}`}>
       {statusLabels[status]}
+      <span className="sr-only">{status}</span>
     </span>
   )
 }

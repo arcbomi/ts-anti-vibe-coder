@@ -14,6 +14,12 @@ export type LoginResponse = {
   token: string
 }
 
+export type RawLoginResponse = {
+  user: AuthUser
+  access_token?: string
+  token?: string
+}
+
 export type AuthState = {
   user: AuthUser | null
   token: string | null

@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package integration
 
 import (
@@ -15,13 +18,14 @@ import (
 
 func TestExamIntegrationLoadsQuestionsWithoutAnswersAndGradesSubmission(t *testing.T) {
 	app := newTestApp(t)
-	userID := uuid.NewString()
+	userID, token := createIntegrationUser(t, app.db, "exam-owner@example.com")
 	repositoryID := uuid.NewString()
 	analysisJobID := uuid.NewString()
 	seedRepositoryAndQuestions(t, app, userID, repositoryID, analysisJobID)
 
-	createBody, _ := json.Marshal(map[string]any{"user_id": userID, "repository_id": repositoryID, "analysis_job_id": analysisJobID, "scheduled_at": time.Date(2026, 6, 5, 9, 0, 0, 0, time.UTC)})
+	createBody, _ := json.Marshal(map[string]any{"user_id": "00000000-0000-0000-0000-000000000099", "repository_id": repositoryID, "analysis_job_id": analysisJobID, "scheduled_at": time.Date(2026, 6, 5, 9, 0, 0, 0, time.UTC)})
 	createReq := httptest.NewRequest(http.MethodPost, "/exams", bytes.NewReader(createBody))
+	createReq.Header.Set("Authorization", "Bearer "+token)
 	createReq.Header.Set("Content-Type", "application/json")
 	createRes := httptest.NewRecorder()
 	app.router.ServeHTTP(createRes, createReq)
@@ -40,6 +44,7 @@ func TestExamIntegrationLoadsQuestionsWithoutAnswersAndGradesSubmission(t *testi
 	}
 
 	questionsReq := httptest.NewRequest(http.MethodGet, "/exams/"+created.ExamID+"/questions", nil)
+	questionsReq.Header.Set("Authorization", "Bearer "+token)
 	questionsRes := httptest.NewRecorder()
 	app.router.ServeHTTP(questionsRes, questionsReq)
 	if questionsRes.Code != http.StatusOK {
@@ -77,6 +82,7 @@ func TestExamIntegrationLoadsQuestionsWithoutAnswersAndGradesSubmission(t *testi
 
 	submitBody, _ := json.Marshal(map[string]any{"answers": answers})
 	submitReq := httptest.NewRequest(http.MethodPost, "/exams/"+created.ExamID+"/submit", bytes.NewReader(submitBody))
+	submitReq.Header.Set("Authorization", "Bearer "+token)
 	submitReq.Header.Set("Content-Type", "application/json")
 	submitRes := httptest.NewRecorder()
 	app.router.ServeHTTP(submitRes, submitReq)
@@ -86,8 +92,11 @@ func TestExamIntegrationLoadsQuestionsWithoutAnswersAndGradesSubmission(t *testi
 	var resultEnv apiEnvelope
 	_ = json.Unmarshal(submitRes.Body.Bytes(), &resultEnv)
 	var result struct {
-		TotalQuestions, CorrectCount, Score, PassingScore int
-		Passed                                            bool `json:"passed"`
+		TotalQuestions int  `json:"total_questions"`
+		CorrectCount   int  `json:"correct_count"`
+		Score          int  `json:"score"`
+		PassingScore   int  `json:"passing_score"`
+		Passed         bool `json:"passed"`
 	}
 	_ = json.Unmarshal(resultEnv.Data, &result)
 	if result.TotalQuestions != 20 || result.CorrectCount != 14 || result.Score != 70 || !result.Passed || result.PassingScore != 70 {
@@ -95,10 +104,52 @@ func TestExamIntegrationLoadsQuestionsWithoutAnswersAndGradesSubmission(t *testi
 	}
 
 	resultReq := httptest.NewRequest(http.MethodGet, "/exams/"+created.ExamID+"/result", nil)
+	resultReq.Header.Set("Authorization", "Bearer "+token)
 	resultRes := httptest.NewRecorder()
 	app.router.ServeHTTP(resultRes, resultReq)
 	if resultRes.Code != http.StatusOK || !bytes.Contains(resultRes.Body.Bytes(), []byte(`"status":"graded"`)) {
 		t.Fatalf("result endpoint should return score and pass/fail: status=%d body=%s", resultRes.Code, resultRes.Body.String())
+	}
+}
+
+func TestExamIntegrationRejectsCrossUserAccess(t *testing.T) {
+	app := newTestApp(t)
+	ownerID, ownerToken := createIntegrationUser(t, app.db, "owner@example.com")
+	_, otherToken := createIntegrationUser(t, app.db, "other@example.com")
+	repositoryID := uuid.NewString()
+	analysisJobID := uuid.NewString()
+	seedRepositoryAndQuestions(t, app, ownerID, repositoryID, analysisJobID)
+
+	createBody, _ := json.Marshal(map[string]any{"repository_id": repositoryID, "analysis_job_id": analysisJobID, "scheduled_at": time.Date(2026, 6, 5, 9, 0, 0, 0, time.UTC)})
+	createReq := httptest.NewRequest(http.MethodPost, "/exams", bytes.NewReader(createBody))
+	createReq.Header.Set("Authorization", "Bearer "+ownerToken)
+	createReq.Header.Set("Content-Type", "application/json")
+	createRes := httptest.NewRecorder()
+	app.router.ServeHTTP(createRes, createReq)
+	if createRes.Code != http.StatusOK {
+		t.Fatalf("create exam status=%d body=%s", createRes.Code, createRes.Body.String())
+	}
+	var createEnv apiEnvelope
+	_ = json.Unmarshal(createRes.Body.Bytes(), &createEnv)
+	var created struct {
+		ExamID string `json:"exam_id"`
+	}
+	_ = json.Unmarshal(createEnv.Data, &created)
+
+	examReq := httptest.NewRequest(http.MethodGet, "/exams/"+created.ExamID, nil)
+	examReq.Header.Set("Authorization", "Bearer "+otherToken)
+	examRes := httptest.NewRecorder()
+	app.router.ServeHTTP(examRes, examReq)
+	if examRes.Code != http.StatusNotFound {
+		t.Fatalf("cross-user exam fetch should 404: status=%d body=%s", examRes.Code, examRes.Body.String())
+	}
+
+	analysisReq := httptest.NewRequest(http.MethodGet, "/analysis-jobs/"+analysisJobID+"/questions", nil)
+	analysisReq.Header.Set("Authorization", "Bearer "+otherToken)
+	analysisRes := httptest.NewRecorder()
+	app.router.ServeHTTP(analysisRes, analysisReq)
+	if analysisRes.Code != http.StatusNotFound {
+		t.Fatalf("cross-user analysis questions should 404: status=%d body=%s", analysisRes.Code, analysisRes.Body.String())
 	}
 }
 

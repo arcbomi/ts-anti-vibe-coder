@@ -11,6 +11,7 @@ export function RepoUrlInput({ isLoading = false, onSubmit }: RepoUrlInputProps)
 
   return (
     <form
+      className="section-stack"
       onSubmit={(event) => {
         event.preventDefault()
         const trimmedUrl = url.trim()
@@ -18,8 +19,8 @@ export function RepoUrlInput({ isLoading = false, onSubmit }: RepoUrlInputProps)
         void onSubmit(trimmedUrl)
       }}
     >
-      <label>
-        GitLab repository URL
+      <label className="field">
+        <span>GitLab repository URL</span>
         <input
           type="url"
           value={url}
@@ -29,6 +30,7 @@ export function RepoUrlInput({ isLoading = false, onSubmit }: RepoUrlInputProps)
           onChange={(event) => setUrl(event.target.value)}
         />
       </label>
+      <p className="field-hint">You do not need to upload code or share a personal token.</p>
       <Button type="submit" disabled={isLoading || !url.trim()}>
         {isLoading ? 'Connecting...' : 'Connect repository'}
       </Button>

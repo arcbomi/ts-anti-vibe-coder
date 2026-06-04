@@ -27,6 +27,18 @@ describe('analysis integration flow', () => {
     'completed',
     'failed',
   ] satisfies AnalysisJobStatus[])('renders backend analysis status %s', async (status) => {
+    const statusLabel = {
+      pending: 'Pending',
+      checking_bot_access: 'Checking bot access',
+      reading_repository: 'Reading repository',
+      indexing_code: 'Indexing code',
+      analyzing_code: 'Analyzing code',
+      generating_questions: 'Generating questions',
+      saving_questions: 'Saving questions',
+      completed: 'Completed',
+      failed: 'Failed',
+    }[status]
+
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
       success: true,
       data: { id: 'job-1', repositoryId: 'repo-1', status, createdAt: '2026-06-03T00:00:00Z', errorMessage: status === 'failed' ? 'AI output invalid.' : undefined },
@@ -39,6 +51,6 @@ describe('analysis integration flow', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByText(status)).toBeTruthy()
+    expect(await screen.findByLabelText(new RegExp(`analysis status: ${statusLabel}`, 'i'))).toBeTruthy()
   })
 })

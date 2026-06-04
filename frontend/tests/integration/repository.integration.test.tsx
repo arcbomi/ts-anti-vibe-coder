@@ -27,7 +27,7 @@ describe('repository integration flow', () => {
     await userEvent.type(screen.getByLabelText(/gitlab repository url/i), 'https://gitlab.com/group/project')
     await userEvent.click(screen.getByRole('button', { name: /connect repository/i }))
 
-    expect(await screen.findByText(/add the gitlab-server-userbot/i)).toBeTruthy()
+    expect(await screen.findByText(/add the gitlab userbot/i)).toBeTruthy()
     expect(screen.getByRole('button', { name: /i already added the bot/i })).toBeTruthy()
 
     await userEvent.click(screen.getByRole('button', { name: /i already added the bot/i }))
@@ -36,7 +36,7 @@ describe('repository integration flow', () => {
       expect.stringContaining('/repositories/repo-1/check-bot-access'),
       expect.objectContaining({ method: 'POST' }),
     ))
-    expect(await screen.findByText(/granted/i)).toBeTruthy()
+    expect(await screen.findByText(/bot access confirmed/i)).toBeTruthy()
     expect(screen.getByRole('button', { name: /start ai analysis/i }).hasAttribute('disabled')).toBe(false)
   })
 
@@ -51,7 +51,7 @@ describe('repository integration flow', () => {
     await userEvent.click(screen.getByRole('button', { name: /connect repository/i }))
     await userEvent.click(await screen.findByRole('button', { name: /i already added the bot/i }))
 
-    expect(await screen.findByText(/please add the bot as a collaborator/i)).toBeTruthy()
+    expect((await screen.findAllByText(/please add the bot as a collaborator/i)).length).toBeGreaterThan(0)
   })
 })
 

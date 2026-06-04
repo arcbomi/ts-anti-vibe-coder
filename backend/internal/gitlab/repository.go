@@ -16,6 +16,8 @@ type Store interface {
 	GetRepository(ctx context.Context, userID string, repositoryID string) (*Repository, error)
 	UpdateBotAccess(ctx context.Context, userID string, repositoryID string, status string, defaultBranch string) (*Repository, error)
 	CreateAnalysisJob(ctx context.Context, job *AnalysisJob) error
+	FailAnalysisJob(ctx context.Context, userID string, analysisJobID string, message string) error
+	GetAnalysisJob(ctx context.Context, userID string, analysisJobID string) (*AnalysisJob, error)
 }
 
 type PostgresStore struct {
@@ -88,16 +90,28 @@ func (s *PostgresStore) CreateRepository(ctx context.Context, repo *Repository) 
 }
 
 func (s *PostgresStore) GetRepository(ctx context.Context, userID string, repositoryID string) (*Repository, error) {
-	query := `SELECT id, user_id, gitlab_repo_url, gitlab_project_path, default_branch, bot_access_status, created_at, updated_at
+	query := `SELECT id, user_id, gitlab_repo_url, gitlab_project_path, default_branch, bot_access_status,
+			(
+				SELECT aj.id
+				FROM analysis_jobs aj
+				WHERE aj.repository_id = repositories.id
+				ORDER BY aj.created_at DESC
+				LIMIT 1
+			) AS latest_analysis_job_id,
+			created_at, updated_at
 		FROM repositories WHERE id = $1 AND user_id = $2`
 	repo := &Repository{}
+	var latestAnalysisJobID sql.NullString
 	if err := s.db.QueryRowContext(ctx, query, repositoryID, userID).Scan(
-		&repo.ID, &repo.UserID, &repo.GitLabRepoURL, &repo.GitLabProjectPath, &repo.DefaultBranch, &repo.BotAccessStatus, &repo.CreatedAt, &repo.UpdatedAt,
+		&repo.ID, &repo.UserID, &repo.GitLabRepoURL, &repo.GitLabProjectPath, &repo.DefaultBranch, &repo.BotAccessStatus, &latestAnalysisJobID, &repo.CreatedAt, &repo.UpdatedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
+	}
+	if latestAnalysisJobID.Valid {
+		repo.LatestAnalysisJobID = &latestAnalysisJobID.String
 	}
 	return repo, nil
 }
@@ -137,4 +151,42 @@ func (s *PostgresStore) CreateAnalysisJob(ctx context.Context, job *AnalysisJob)
 			&job.ID, &job.UserID, &job.RepositoryID, &job.Status, &job.ErrorMessage, &job.CreatedAt, &job.CompletedAt,
 		)
 	})
+}
+
+func (s *PostgresStore) GetAnalysisJob(ctx context.Context, userID string, analysisJobID string) (*AnalysisJob, error) {
+	query := `SELECT id, user_id, repository_id, status, error_message, created_at, completed_at
+		FROM analysis_jobs WHERE id = $1 AND user_id = $2`
+	job := &AnalysisJob{}
+	if err := s.db.QueryRowContext(ctx, query, analysisJobID, userID).Scan(
+		&job.ID, &job.UserID, &job.RepositoryID, &job.Status, &job.ErrorMessage, &job.CreatedAt, &job.CompletedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return job, nil
+}
+
+func (s *PostgresStore) FailAnalysisJob(ctx context.Context, userID string, analysisJobID string, message string) error {
+	result, err := s.db.ExecContext(
+		ctx,
+		`UPDATE analysis_jobs
+		SET status = 'failed', error_message = $1, completed_at = now()
+		WHERE id = $2 AND user_id = $3`,
+		message,
+		analysisJobID,
+		userID,
+	)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

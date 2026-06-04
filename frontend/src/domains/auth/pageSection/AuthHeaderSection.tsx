@@ -15,8 +15,9 @@ export function AuthHeaderSection() {
 
   return (
     <Card>
-      <header>
+      <header className="section-stack">
         <h1>Account</h1>
+        <p className="section-lede">Your session stays in sync with the backend so route changes keep working after refresh.</p>
         {isLoading && !user ? <LoadingState label="Loading current user..." /> : null}
         {error ? <ErrorState message={error} /> : null}
         {user ? <UserCard user={user} isLoading={isLoading} onLogout={logout} /> : <div>Not logged in</div>}

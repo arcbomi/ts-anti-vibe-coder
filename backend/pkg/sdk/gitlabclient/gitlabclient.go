@@ -236,5 +236,6 @@ func isNotFoundOrForbidden(err error) bool {
 	if errors.As(err, &gitlabErr) && gitlabErr.Response != nil {
 		return gitlabErr.Response.StatusCode == http.StatusNotFound || gitlabErr.Response.StatusCode == http.StatusForbidden
 	}
-	return false
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "404") || strings.Contains(msg, "403") || strings.Contains(msg, "not found") || strings.Contains(msg, "forbidden")
 }

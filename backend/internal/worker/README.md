@@ -57,7 +57,7 @@ When a permanent failure occurs, or when a retryable failure exhausts all attemp
 From the repository root:
 
 ```bash
-docker compose up postgres redis worker-service
+docker compose -f docker-compose.yml -f docker-compose.infra.yml up postgres redis worker-service
 ```
 
 Or run directly from the Go module:

@@ -108,7 +108,7 @@ Start PostgreSQL, Redis, all backend services, the worker, database migrations, 
 make dev
 ```
 
-This command calls `./scripts/dev-up.sh`, creates `.env` from `.env.example` when needed, and runs `docker compose up --build`. The frontend is available at <http://localhost:5173>. Backend health checks are exposed at:
+This command calls `./scripts/dev-up.sh`, creates `.env` from `.env.example` when needed, and runs `docker compose -f docker-compose.yml -f docker-compose.infra.yml up --build`. The frontend is available at <http://localhost:5173>. Backend health checks are exposed at:
 
 | Component | URL |
 | --- | --- |

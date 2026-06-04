@@ -65,19 +65,25 @@ type CreateExamRequest struct {
 }
 
 type CreateExamResponse struct {
-	ExamID string `json:"exam_id"`
-	Status string `json:"status"`
+	ID            string `json:"id"`
+	ExamID        string `json:"exam_id"`
+	AnalysisJobID string `json:"analysis_job_id,omitempty"`
+	Status        string `json:"status"`
+	QuestionCount int    `json:"question_count,omitempty"`
 }
 
 type ExamResponse struct {
-	ExamID       string     `json:"exam_id"`
-	UserID       string     `json:"user_id"`
-	RepositoryID string     `json:"repository_id"`
-	ScheduledAt  time.Time  `json:"scheduled_at"`
-	Status       string     `json:"status"`
-	Score        *int       `json:"score"`
-	Passed       *bool      `json:"passed"`
-	SubmittedAt  *time.Time `json:"submitted_at,omitempty"`
+	ID            string           `json:"id"`
+	ExamID        string           `json:"exam_id"`
+	UserID        string           `json:"user_id,omitempty"`
+	RepositoryID  string           `json:"repository_id,omitempty"`
+	AnalysisJobID string           `json:"analysis_job_id,omitempty"`
+	ScheduledAt   time.Time        `json:"scheduled_at"`
+	Status        string           `json:"status"`
+	Score         *int             `json:"score,omitempty"`
+	Passed        *bool            `json:"passed,omitempty"`
+	SubmittedAt   *time.Time       `json:"submitted_at,omitempty"`
+	Questions     []PublicQuestion `json:"questions,omitempty"`
 }
 
 type PublicQuestion struct {
@@ -104,6 +110,7 @@ type SubmittedAnswer struct {
 
 type ResultResponse struct {
 	ExamID         string `json:"exam_id"`
+	Submitted      bool   `json:"submitted,omitempty"`
 	TotalQuestions int    `json:"total_questions"`
 	CorrectCount   int    `json:"correct_count"`
 	Score          int    `json:"score"`

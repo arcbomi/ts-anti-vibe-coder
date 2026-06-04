@@ -5,15 +5,16 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"backend/pkg/sdk/authn"
 )
 
 var (
-	ErrTokenExpired = errors.New("token expired")
-	ErrTokenInvalid = errors.New("token invalid")
+	ErrTokenExpired = authn.ErrTokenExpired
+	ErrTokenInvalid = authn.ErrTokenInvalid
 )
 
 // TokenManager creates and validates compact HS256 JWT access tokens.
@@ -28,13 +29,7 @@ type tokenHeader struct {
 	Type      string `json:"typ"`
 }
 
-type AccessClaims struct {
-	Subject string `json:"sub"`
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	Issued  int64  `json:"iat"`
-	Expires int64  `json:"exp"`
-}
+type AccessClaims = authn.Claims
 
 func NewTokenManager(secret string, ttl time.Duration) (*TokenManager, error) {
 	secret = strings.TrimSpace(secret)

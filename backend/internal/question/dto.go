@@ -19,7 +19,11 @@ type SaveGeneratedQuestionsResponse struct {
 }
 
 type QuestionsResponse struct {
-	Questions []PublicQuestionDTO `json:"questions"`
+	ID             string              `json:"id,omitempty"`
+	AnalysisJobID  string              `json:"analysis_job_id,omitempty"`
+	ExamID         string              `json:"exam_id,omitempty"`
+	QuestionsCount int                 `json:"questions_count,omitempty"`
+	Questions      []PublicQuestionDTO `json:"questions"`
 }
 
 type PublicQuestionDTO struct {

@@ -39,11 +39,11 @@ func (e *AppError) Error() string {
 func (e *AppError) Unwrap() error { return e.Cause }
 
 type Service interface {
-	CreateExam(ctx context.Context, req CreateExamRequest) (CreateExamResponse, error)
-	GetExam(ctx context.Context, examID string) (ExamResponse, error)
-	GetQuestions(ctx context.Context, examID string) (QuestionsResponse, error)
-	SubmitExam(ctx context.Context, examID string, req SubmitExamRequest) (ResultResponse, error)
-	GetResult(ctx context.Context, examID string) (ResultResponse, error)
+	CreateExam(ctx context.Context, userID string, req CreateExamRequest) (CreateExamResponse, error)
+	GetExam(ctx context.Context, userID string, examID string) (ExamResponse, error)
+	GetQuestions(ctx context.Context, userID string, examID string) (QuestionsResponse, error)
+	SubmitExam(ctx context.Context, userID string, examID string, req SubmitExamRequest) (ResultResponse, error)
+	GetResult(ctx context.Context, userID string, examID string) (ResultResponse, error)
 }
 
 type ExamService struct {
@@ -58,26 +58,44 @@ func NewService(store Store, passingScore int, examOpenDOW string) *ExamService 
 	}
 	weekday, ok := parseWeekday(examOpenDOW)
 	if !ok {
-		weekday = time.Saturday
+		weekday = time.Friday
 	}
 	return &ExamService{store: store, passingScore: passingScore, examOpenDOW: weekday}
 }
 
-func (s *ExamService) CreateExam(ctx context.Context, req CreateExamRequest) (CreateExamResponse, error) {
+func (s *ExamService) CreateExam(ctx context.Context, userID string, req CreateExamRequest) (CreateExamResponse, error) {
+	req.UserID = userID
 	if err := validateUUID(req.UserID, "user_id"); err != nil {
-		return CreateExamResponse{}, badRequest(err)
-	}
-	if err := validateUUID(req.RepositoryID, "repository_id"); err != nil {
 		return CreateExamResponse{}, badRequest(err)
 	}
 	if err := validateUUID(req.AnalysisJobID, "analysis_job_id"); err != nil {
 		return CreateExamResponse{}, badRequest(err)
 	}
+
+	if strings.TrimSpace(req.RepositoryID) == "" {
+		repositoryID, err := s.store.GetAnalysisJobRepositoryID(ctx, req.UserID, req.AnalysisJobID)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				return CreateExamResponse{}, appError(ErrCodeExamNotFound, "Analysis job not found.", http.StatusNotFound, err)
+			}
+			return CreateExamResponse{}, databaseError("Unable to validate exam source analysis.", err)
+		}
+		req.RepositoryID = repositoryID
+	} else if err := validateUUID(req.RepositoryID, "repository_id"); err != nil {
+		return CreateExamResponse{}, badRequest(err)
+	}
+
 	if req.ScheduledAt.IsZero() {
-		return CreateExamResponse{}, badRequest(errors.New("scheduled_at is required"))
+		req.ScheduledAt = nextScheduledExamTime(time.Now().UTC(), s.examOpenDOW)
 	}
 	if req.ScheduledAt.UTC().Weekday() != s.examOpenDOW {
 		return CreateExamResponse{}, badRequest(fmt.Errorf("scheduled_at must be on %s", s.examOpenDOW.String()))
+	}
+	if err := s.store.VerifyAnalysisJobOwnership(ctx, req.UserID, req.RepositoryID, req.AnalysisJobID); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return CreateExamResponse{}, appError(ErrCodeExamNotFound, "Analysis job not found.", http.StatusNotFound, err)
+		}
+		return CreateExamResponse{}, databaseError("Unable to validate exam source analysis.", err)
 	}
 
 	questions, err := s.store.GetGeneratedQuestions(ctx, req.AnalysisJobID, QuestionCount)
@@ -93,19 +111,29 @@ func (s *ExamService) CreateExam(ctx context.Context, req CreateExamRequest) (Cr
 	if err != nil {
 		return CreateExamResponse{}, databaseError("Unable to create exam.", err)
 	}
-	return CreateExamResponse{ExamID: created.ID, Status: created.Status}, nil
+	return CreateExamResponse{ID: created.ID, ExamID: created.ID, AnalysisJobID: created.AnalysisJobID, Status: created.Status, QuestionCount: len(questions)}, nil
 }
 
-func (s *ExamService) GetExam(ctx context.Context, examID string) (ExamResponse, error) {
-	exam, err := s.getExam(ctx, examID)
+func (s *ExamService) GetExam(ctx context.Context, userID string, examID string) (ExamResponse, error) {
+	exam, err := s.getExam(ctx, userID, examID)
 	if err != nil {
 		return ExamResponse{}, err
 	}
-	return toExamResponse(exam), nil
+	questions, err := s.store.GetExamQuestions(ctx, exam.ID)
+	if err != nil {
+		return ExamResponse{}, databaseError("Unable to load exam questions.", err)
+	}
+	public := make([]PublicQuestion, 0, len(questions))
+	for _, q := range questions {
+		public = append(public, toPublicQuestion(q))
+	}
+	resp := toExamResponse(exam)
+	resp.Questions = public
+	return resp, nil
 }
 
-func (s *ExamService) GetQuestions(ctx context.Context, examID string) (QuestionsResponse, error) {
-	exam, err := s.getExam(ctx, examID)
+func (s *ExamService) GetQuestions(ctx context.Context, userID string, examID string) (QuestionsResponse, error) {
+	exam, err := s.getExam(ctx, userID, examID)
 	if err != nil {
 		return QuestionsResponse{}, err
 	}
@@ -123,8 +151,8 @@ func (s *ExamService) GetQuestions(ctx context.Context, examID string) (Question
 	return QuestionsResponse{ExamID: exam.ID, Questions: public}, nil
 }
 
-func (s *ExamService) SubmitExam(ctx context.Context, examID string, req SubmitExamRequest) (ResultResponse, error) {
-	exam, err := s.getExam(ctx, examID)
+func (s *ExamService) SubmitExam(ctx context.Context, userID string, examID string, req SubmitExamRequest) (ResultResponse, error) {
+	exam, err := s.getExam(ctx, userID, examID)
 	if err != nil {
 		return ResultResponse{}, err
 	}
@@ -148,11 +176,11 @@ func (s *ExamService) SubmitExam(ctx context.Context, examID string, req SubmitE
 	if err := s.store.SaveSubmission(ctx, exam.ID, answers, score, passed, submittedAt); err != nil {
 		return ResultResponse{}, databaseError("Unable to store exam submission.", err)
 	}
-	return ResultResponse{ExamID: exam.ID, TotalQuestions: len(questions), CorrectCount: correctCount, Score: score, Passed: passed, PassingScore: exam.PassingScore}, nil
+	return ResultResponse{ExamID: exam.ID, Submitted: true, TotalQuestions: len(questions), CorrectCount: correctCount, Score: score, Passed: passed, PassingScore: exam.PassingScore}, nil
 }
 
-func (s *ExamService) GetResult(ctx context.Context, examID string) (ResultResponse, error) {
-	exam, err := s.getExam(ctx, examID)
+func (s *ExamService) GetResult(ctx context.Context, userID string, examID string) (ResultResponse, error) {
+	exam, err := s.getExam(ctx, userID, examID)
 	if err != nil {
 		return ResultResponse{}, err
 	}
@@ -166,11 +194,14 @@ func (s *ExamService) GetResult(ctx context.Context, examID string) (ResultRespo
 	return ResultResponse{ExamID: exam.ID, TotalQuestions: QuestionCount, CorrectCount: correctCount, Score: *exam.Score, Passed: *exam.Passed, PassingScore: exam.PassingScore, Status: exam.Status}, nil
 }
 
-func (s *ExamService) getExam(ctx context.Context, examID string) (Exam, error) {
+func (s *ExamService) getExam(ctx context.Context, userID string, examID string) (Exam, error) {
+	if err := validateUUID(userID, "user_id"); err != nil {
+		return Exam{}, badRequest(err)
+	}
 	if err := validateUUID(examID, "exam_id"); err != nil {
 		return Exam{}, badRequest(err)
 	}
-	exam, err := s.store.GetExam(ctx, examID)
+	exam, err := s.store.GetExam(ctx, userID, examID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return Exam{}, appError(ErrCodeExamNotFound, "Exam not found.", http.StatusNotFound, err)
@@ -217,7 +248,7 @@ func buildGradedAnswers(examID string, questions []Question, submitted []Submitt
 }
 
 func toExamResponse(e Exam) ExamResponse {
-	return ExamResponse{ExamID: e.ID, UserID: e.UserID, RepositoryID: e.RepositoryID, ScheduledAt: e.ScheduledAt, Status: e.Status, Score: e.Score, Passed: e.Passed, SubmittedAt: e.SubmittedAt}
+	return ExamResponse{ID: e.ID, ExamID: e.ID, UserID: e.UserID, RepositoryID: e.RepositoryID, AnalysisJobID: e.AnalysisJobID, ScheduledAt: e.ScheduledAt, Status: e.Status, Score: e.Score, Passed: e.Passed, SubmittedAt: e.SubmittedAt}
 }
 
 func toPublicQuestion(q Question) PublicQuestion {
@@ -229,6 +260,16 @@ func validateUUID(value, field string) error {
 		return fmt.Errorf("%s must be a valid UUID", field)
 	}
 	return nil
+}
+
+func nextScheduledExamTime(now time.Time, weekday time.Weekday) time.Time {
+	base := now.UTC()
+	daysAhead := (int(weekday) - int(base.Weekday()) + 7) % 7
+	scheduled := time.Date(base.Year(), base.Month(), base.Day(), 9, 0, 0, 0, time.UTC)
+	if daysAhead == 0 && !base.Before(scheduled) {
+		daysAhead = 7
+	}
+	return scheduled.AddDate(0, 0, daysAhead)
 }
 
 func parseWeekday(value string) (time.Weekday, bool) {
@@ -245,10 +286,12 @@ func parseWeekday(value string) (time.Weekday, bool) {
 		return time.Thursday, true
 	case "friday":
 		return time.Friday, true
-	case "saturday", "":
+	case "saturday":
 		return time.Saturday, true
+	case "":
+		return time.Friday, true
 	default:
-		return time.Saturday, false
+		return time.Friday, false
 	}
 }
 
