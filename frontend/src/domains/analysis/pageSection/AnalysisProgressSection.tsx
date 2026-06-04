@@ -19,12 +19,13 @@ export function AnalysisProgressSection({ jobId: jobIdProp }: AnalysisProgressSe
   if (!job) return <LoadingState label="Waiting for analysis job..." />
 
   return (
-    <section>
+    <section className="section-stack">
       <h1>AI Analysis Progress</h1>
+      <p className="section-lede">The backend is checking repository access, reading code, and generating the question set.</p>
       {error && <ErrorState message={error} />}
       <AnalysisProgress job={job} />
       {job.status === 'completed' && (
-        <div>
+        <div className="callout callout--success">
           <h2>Analysis completed.</h2>
           <p>20 English-only exam questions are ready.</p>
           <p>You can now wait for the Friday offline exam.</p>

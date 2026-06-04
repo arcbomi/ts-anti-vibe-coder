@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package integration
 
 import (
@@ -45,30 +48,32 @@ func (f *fakeGitLabServer) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !f.accessOK.Load() {
-		http.Error(w, "not found", http.StatusNotFound)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": "404 Project Not Found"})
 		return
 	}
 	rest := strings.TrimPrefix(p, "/projects/")
-	parts := strings.SplitN(rest, "/", 2)
-	projectPath, _ := url.PathUnescape(parts[0])
-	if projectPath != "group/project" {
+
+	suffix, ok := fakeGitLabProjectSuffix(rest, "group/project")
+	if !ok {
 		http.NotFound(w, r)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if len(parts) == 1 {
+	if suffix == "" {
 		_ = json.NewEncoder(w).Encode(map[string]any{"id": 101, "name": "project", "path_with_namespace": "group/project", "default_branch": "main", "web_url": f.RepoURL()})
 		return
 	}
 	switch {
-	case strings.HasPrefix(parts[1], "repository/tree"):
+	case strings.HasPrefix(suffix, "repository/tree"):
 		nodes := make([]map[string]string, 0, len(f.repoFiles))
 		for filePath := range f.repoFiles {
 			nodes = append(nodes, map[string]string{"id": strings.ReplaceAll(filePath, "/", "-"), "name": path.Base(filePath), "type": "blob", "path": filePath, "mode": "100644"})
 		}
 		_ = json.NewEncoder(w).Encode(nodes)
-	case strings.HasPrefix(parts[1], "repository/files/") && strings.HasSuffix(parts[1], "/raw"):
-		encoded := strings.TrimSuffix(strings.TrimPrefix(parts[1], "repository/files/"), "/raw")
+	case strings.HasPrefix(suffix, "repository/files/") && strings.HasSuffix(suffix, "/raw"):
+		encoded := strings.TrimSuffix(strings.TrimPrefix(suffix, "repository/files/"), "/raw")
 		filePath, _ := url.PathUnescape(encoded)
 		content, ok := f.repoFiles[filePath]
 		if !ok {
@@ -79,5 +84,19 @@ func (f *fakeGitLabServer) handle(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(content))
 	default:
 		http.NotFound(w, r)
+	}
+}
+
+func fakeGitLabProjectSuffix(rest string, projectPath string) (string, bool) {
+	encodedProjectPath := url.PathEscape(projectPath)
+	switch {
+	case rest == projectPath, rest == encodedProjectPath:
+		return "", true
+	case strings.HasPrefix(rest, projectPath+"/"):
+		return strings.TrimPrefix(rest, projectPath+"/"), true
+	case strings.HasPrefix(rest, encodedProjectPath+"/"):
+		return strings.TrimPrefix(rest, encodedProjectPath+"/"), true
+	default:
+		return "", false
 	}
 }

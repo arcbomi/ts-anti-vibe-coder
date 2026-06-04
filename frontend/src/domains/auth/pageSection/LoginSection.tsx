@@ -8,9 +8,9 @@ type LoginSectionProps = {
 export function LoginSection({ onLoginSuccess }: LoginSectionProps) {
   return (
     <Card>
-      <section aria-labelledby="login-title">
+      <section className="section-stack" aria-labelledby="login-title">
         <h1 id="login-title">Log in to start your codebase understanding exam.</h1>
-        <p>This platform verifies real codebase understanding before students begin their exam.</p>
+        <p className="section-lede">This platform verifies real codebase understanding before students begin their exam.</p>
         <LoginForm onSuccess={onLoginSuccess} />
       </section>
     </Card>

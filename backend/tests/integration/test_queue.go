@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package integration
 
 import (
@@ -23,7 +26,7 @@ func openTestRedis(t *testing.T) *redis.Client {
 	client := queue.NewRedisClient(queue.RedisConfig{Addr: addr, Password: os.Getenv("TEST_REDIS_PASSWORD"), DB: 15})
 	ctx := context.Background()
 	if err := client.Ping(ctx).Err(); err != nil {
-		t.Skipf("Redis integration queue is unavailable at %s: %v", addr, err)
+		t.Fatalf("Redis integration queue is unavailable at %s: %v", addr, err)
 	}
 	if err := client.FlushDB(ctx).Err(); err != nil {
 		t.Fatalf("flush Redis integration db: %v", err)

@@ -15,9 +15,11 @@ var ErrNotFound = errors.New("not found")
 
 type Store interface {
 	EnsureSchema(ctx context.Context) error
+	VerifyAnalysisJobOwnership(ctx context.Context, userID string, repositoryID string, analysisJobID string) error
+	GetAnalysisJobRepositoryID(ctx context.Context, userID string, analysisJobID string) (string, error)
 	GetGeneratedQuestions(ctx context.Context, analysisJobID string, limit int) ([]Question, error)
 	CreateExamWithQuestions(ctx context.Context, exam Exam, questions []Question) (Exam, error)
-	GetExam(ctx context.Context, examID string) (Exam, error)
+	GetExam(ctx context.Context, userID string, examID string) (Exam, error)
 	GetExamQuestions(ctx context.Context, examID string) ([]Question, error)
 	SaveSubmission(ctx context.Context, examID string, answers []Answer, score int, passed bool, submittedAt time.Time) error
 	CountCorrectAnswers(ctx context.Context, examID string) (int, error)
@@ -110,6 +112,33 @@ func (s *PostgresStore) GetGeneratedQuestions(ctx context.Context, analysisJobID
 	return scanQuestions(rows)
 }
 
+func (s *PostgresStore) VerifyAnalysisJobOwnership(ctx context.Context, userID string, repositoryID string, analysisJobID string) error {
+	var exists bool
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(
+		SELECT 1 FROM analysis_jobs
+		WHERE id = $1 AND user_id = $2 AND repository_id = $3
+	)`, analysisJobID, userID, repositoryID).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *PostgresStore) GetAnalysisJobRepositoryID(ctx context.Context, userID string, analysisJobID string) (string, error) {
+	var repositoryID string
+	err := s.db.QueryRowContext(ctx, `SELECT repository_id::text FROM analysis_jobs WHERE id = $1 AND user_id = $2`, analysisJobID, userID).Scan(&repositoryID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		return "", err
+	}
+	return repositoryID, nil
+}
+
 func (s *PostgresStore) CreateExamWithQuestions(ctx context.Context, e Exam, questions []Question) (Exam, error) {
 	if e.ID == "" {
 		e.ID = uuid.NewString()
@@ -136,9 +165,9 @@ func (s *PostgresStore) CreateExamWithQuestions(ctx context.Context, e Exam, que
 	})
 }
 
-func (s *PostgresStore) GetExam(ctx context.Context, examID string) (Exam, error) {
+func (s *PostgresStore) GetExam(ctx context.Context, userID string, examID string) (Exam, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT id, COALESCE(user_id::text, ''), COALESCE(repository_id::text, ''), analysis_job_id::text, scheduled_at, status, score, passed, passing_score, created_at, submitted_at
-		FROM exams WHERE id = $1`, examID)
+		FROM exams WHERE id = $1 AND user_id = $2`, examID, userID)
 	var e Exam
 	var score sql.NullInt64
 	var passed sql.NullBool

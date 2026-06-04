@@ -15,4 +15,4 @@ Rules:
 - Correct answers are hidden during the exam.
 - Passing score is configurable.
 - Default passing score is 70%.
-- Exams are intended for offline Saturday testing.
+- Exams are intended for offline Friday testing.

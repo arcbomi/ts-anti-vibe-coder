@@ -45,40 +45,29 @@ export function ExamTakingSection({ examId: examIdProp }: ExamTakingSectionProps
   }
 
   return (
-    <section style={{ display: 'grid', gap: '1.5rem', maxWidth: '56rem', margin: '0 auto', padding: '2rem 1rem' }}>
-      <header style={{ display: 'grid', gap: '0.75rem' }}>
-        <p style={{ margin: 0, color: '#2563eb', fontWeight: 700 }}>Repository Understanding Exam</p>
-        <h1 style={{ margin: 0 }}>Answer the English-only A/B/C/D questions</h1>
-        <p style={{ margin: 0, color: '#4b5563' }}>
+    <section className="page-shell section-stack">
+      <header className="section-stack">
+        <p className="eyebrow">Repository Understanding Exam</p>
+        <h1>Answer the English-only A/B/C/D questions</h1>
+        <p className="section-lede">
           Select one answer per question. The backend grades the exam after submission; this screen does not know or
           display correct answers.
         </p>
       </header>
 
       <Card>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            justifyContent: 'space-between',
-            padding: '1rem',
-            border: '1px solid #e5e7eb',
-            borderRadius: '1rem',
-            background: '#f9fafb',
-          }}
-        >
+        <div className="status-bar">
           <strong>Time remaining: {formattedTime}</strong>
           <span>
             {answeredCount} / {totalCount} answered
           </span>
-          {isExpired ? <span style={{ color: '#b91c1c' }}>Timer expired. Submit when ready.</span> : null}
+          {isExpired ? <span className="status-danger">Timer expired. Submit when ready.</span> : null}
         </div>
       </Card>
 
       {error ? <ErrorState message={error} /> : null}
 
-      <div style={{ display: 'grid', gap: '1rem' }}>
+      <div className="question-stack">
         {exam.questions.map((question, index) => (
           <ExamQuestion
             key={question.id}
@@ -92,7 +81,7 @@ export function ExamTakingSection({ examId: examIdProp }: ExamTakingSectionProps
       </div>
 
       <Card>
-        <div style={{ padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '1rem', background: '#ffffff' }}>
+        <div className="section-stack">
           <SubmitExamButton
             answeredCount={answeredCount}
             totalCount={totalCount}
@@ -101,14 +90,14 @@ export function ExamTakingSection({ examId: examIdProp }: ExamTakingSectionProps
             onSubmit={handleSubmit}
           />
           {!allQuestionsAnswered ? (
-            <p style={{ marginBottom: 0, color: '#6b7280' }}>Answer every question before submitting.</p>
+            <p className="field-hint">Answer every question before submitting.</p>
           ) : null}
         </div>
       </Card>
 
       {result ? (
         <Card>
-          <div style={{ padding: '1rem', border: '1px solid #d1fae5', borderRadius: '1rem', background: '#ecfdf5' }}>
+          <div className="callout callout--success">
             Backend grading complete. Result status: <strong>{result.status}</strong>.
           </div>
         </Card>

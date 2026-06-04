@@ -39,6 +39,18 @@ func main() {
 	authRepository := auth.NewRepository(db)
 	authService := auth.NewService(authRepository, tokenManager)
 	authHandler := auth.NewHandler(authService)
+	if cfg.AppEnv == "development" {
+		if err := authService.EnsureDevSeedUser(
+			context.Background(),
+			cfg.DevSeedUserName,
+			cfg.DevSeedUserEmail,
+			cfg.DevSeedUserPassword,
+		); err != nil {
+			log.Error("dev seed user initialization failed", "err", err)
+			os.Exit(1)
+		}
+		log.Info("dev seed user ready", "email", cfg.DevSeedUserEmail)
+	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID())

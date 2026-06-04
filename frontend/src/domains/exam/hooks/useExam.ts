@@ -51,9 +51,7 @@ export function useExam(examId?: string) {
         questionId,
         selectedOption,
       }))
-      const result = await submitExamRequest(examId, { answers })
-      examStore.getState().setResult(result)
-      return result
+      return await submitExamRequest(examId, { answers })
     } catch (error) {
       examStore.getState().setError(getErrorMessage(error, 'Failed to submit exam.'))
       return null

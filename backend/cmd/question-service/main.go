@@ -9,6 +9,7 @@ import (
 	"time"
 
 	internalquestion "backend/internal/question"
+	"backend/pkg/sdk/authn"
 	"backend/pkg/sdk/config"
 	"backend/pkg/sdk/database"
 	"backend/pkg/sdk/logger"
@@ -39,6 +40,11 @@ func main() {
 
 	service := internalquestion.NewService(store)
 	handler := internalquestion.NewHandler(service, os.Getenv("INTERNAL_SERVICE_TOKEN"))
+	validator, err := authn.NewValidator(cfg.JWTSecret)
+	if err != nil {
+		log.Error("jwt validator initialization failed", "err", err)
+		os.Exit(1)
+	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID())
@@ -49,7 +55,7 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	r.Mount("/", internalquestion.NewRouter(handler))
+	r.Mount("/", internalquestion.NewRouter(handler, validator))
 
 	srv := &http.Server{Addr: cfg.HTTPAddr(), Handler: r, ReadHeaderTimeout: 5 * time.Second}
 	go func() {

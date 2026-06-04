@@ -7,10 +7,10 @@ dev-down:
 	./scripts/dev-down.sh
 
 infra-up:
-	docker compose up -d postgres redis
+	docker compose -f docker-compose.infra.yml up -d
 
 infra-down:
-	docker compose down -v
+	docker compose -f docker-compose.infra.yml down -v
 
 migrate:
 	./scripts/run-migrations.sh

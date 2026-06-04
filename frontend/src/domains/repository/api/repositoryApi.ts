@@ -5,19 +5,42 @@ import type {
   StartAnalysisResponse,
 } from '@/domains/repository/types/repository.types'
 
+type RawRepository = {
+  id?: string
+  repository_id?: string
+  gitlab_repo_url: string
+  bot_access_status: Repository['bot_access_status']
+  latest_analysis_job_id?: string | null
+  latestAnalysisJobId?: string | null
+}
+
+function normalizeRepository(repository: RawRepository): Repository {
+  return {
+    id: repository.id ?? repository.repository_id ?? '',
+    gitlab_repo_url: repository.gitlab_repo_url,
+    bot_access_status: repository.bot_access_status,
+    latestAnalysisJobId: repository.latestAnalysisJobId ?? repository.latest_analysis_job_id ?? null,
+  }
+}
+
 export const repositoryApi = {
-  create: (request: CreateRepositoryRequest) =>
-    apiFetch<Repository>('/repositories', {
+  create: async (request: CreateRepositoryRequest) => {
+    const repository = await apiFetch<RawRepository>('/repositories', {
       method: 'POST',
       body: JSON.stringify(request),
-    }),
+    })
 
-  get: (id: string) => apiFetch<Repository>(`/repositories/${id}`),
+    return normalizeRepository(repository)
+  },
 
-  checkBotAccess: (id: string) =>
-    apiFetch<Repository>(`/repositories/${id}/check-bot-access`, {
-      method: 'POST',
-    }),
+  get: async (id: string) => normalizeRepository(await apiFetch<RawRepository>(`/repositories/${id}`)),
+
+  checkBotAccess: async (id: string) =>
+    normalizeRepository(
+      await apiFetch<RawRepository>(`/repositories/${id}/check-bot-access`, {
+        method: 'POST',
+      }),
+    ),
 
   startAnalysis: (id: string) =>
     apiFetch<StartAnalysisResponse>(`/repositories/${id}/start-analysis`, {

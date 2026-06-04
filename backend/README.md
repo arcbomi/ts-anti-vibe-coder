@@ -1,6 +1,6 @@
 # Go Backend
 
-This backend powers the GitLab Codebase Understanding Exam Platform. Its purpose is to verify that a user truly understands a GitLab repository by reading the repository through the platform GitLab server userbot, generating English-only A/B/C/D questions with AI, running an offline Saturday exam, and grading answers on the backend as the source of truth.
+This backend powers the GitLab Codebase Understanding Exam Platform. Its purpose is to verify that a user truly understands a GitLab repository by reading the repository through the platform GitLab server userbot, generating English-only A/B/C/D questions with AI, running an offline Friday exam, and grading answers on the backend as the source of truth.
 
 The backend is intentionally split into small, independent Go programs under `backend/cmd`. Shared infrastructure, clients, configuration, logging, middleware, error handling, database access, queue access, GitLab access, and AI access must live in the centralized SDK under `backend/pkg/sdk`.
 
@@ -27,7 +27,7 @@ Each service is independently runnable, independently deployable, independently 
 | GitLab Reader Service | `cmd/gitlab-reader-service` | Store repository metadata, check GitLab bot access, read safe repository files, create analysis jobs. |
 | AI Analysis Service | `cmd/ai-analysis-service` | Analyze code structure and orchestrate AI generation of 20 English-only questions. |
 | Question Service | `cmd/question-service` | Persist generated questions and provide exam-safe question payloads without answers. |
-| Exam Service | `cmd/exam-service` | Create Saturday offline exams, accept submissions, grade answers, create pass records. |
+| Exam Service | `cmd/exam-service` | Create Friday offline exams, accept submissions, grade answers, create pass records. |
 | Worker Service | `cmd/worker-service` | Consume long-running analysis jobs, update status, retry failures, dead-letter permanent failures. |
 
 In the future, `auth-service` should support Tomorrow School's own account system or Tomorrow School SSO.
@@ -63,6 +63,12 @@ go run ./cmd/worker-service
 
 Service-specific environment variables can override shared values by prefixing the variable with the service name in uppercase snake case. For example, `API_GATEWAY_HTTP_PORT=9000` overrides `HTTP_PORT` only for `api-gateway`.
 
+When `APP_ENV=development`, `auth-service` also ensures a local seed account exists. The defaults come from `.env`:
+
+- `DEV_SEED_USER_NAME=Student User`
+- `DEV_SEED_USER_EMAIL=student@example.com`
+- `DEV_SEED_USER_PASSWORD=correct-password`
+
 ## Environment variables overview
 
 | Variable | Purpose |
@@ -80,8 +86,8 @@ Service-specific environment variables can override shared values by prefixing t
 | `AI_API_KEY` | AI provider API key. |
 | `AI_MODEL` | AI model used for repository analysis and question generation. |
 | `AI_TIMEOUT_SECONDS` | Timeout for AI requests. |
-| `EXAM_TIMEZONE` | Timezone used to schedule offline Saturday exams. |
-| `EXAM_OPEN_DOW` | Day exams are available, defaulting to Saturday. |
+| `EXAM_TIMEZONE` | Timezone used to schedule offline Friday exams. |
+| `EXAM_OPEN_DOW` | Day exams are available, defaulting to Friday. |
 | `EXAM_PASS_PERCENT` | Passing score percentage, defaulting to 70. |
 | `AUTH_JWT_HS256_SECRET` | Shared JWT/session validation secret for development and MVP deployments. |
 

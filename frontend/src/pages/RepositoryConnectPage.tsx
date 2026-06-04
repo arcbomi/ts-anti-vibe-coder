@@ -2,7 +2,7 @@ import { RepositoryConnectSection } from '@/domains/repository/pageSection/Repos
 
 export function RepositoryConnectPage() {
   return (
-    <main>
+    <main className="page-shell">
       <RepositoryConnectSection />
     </main>
   )

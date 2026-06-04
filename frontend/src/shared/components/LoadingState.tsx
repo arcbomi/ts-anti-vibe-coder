@@ -1,3 +1,7 @@
 export function LoadingState({ label }: { label?: string }) {
-  return <div>{label ?? 'Loading...'}</div>
+  return (
+    <div className="callout callout--neutral" aria-live="polite" aria-busy="true">
+      {label ?? 'Loading...'}
+    </div>
+  )
 }

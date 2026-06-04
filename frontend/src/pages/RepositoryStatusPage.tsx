@@ -2,7 +2,7 @@ import { RepositoryStatusSection } from '@/domains/repository/pageSection/Reposi
 
 export function RepositoryStatusPage() {
   return (
-    <main>
+    <main className="page-shell">
       <RepositoryStatusSection />
     </main>
   )

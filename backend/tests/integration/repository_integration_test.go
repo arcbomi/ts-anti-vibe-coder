@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package integration
 
 import (
@@ -16,7 +19,6 @@ func TestRepositoryIntegrationSubmitAndCheckBotAccess(t *testing.T) {
 
 	checkReq := httptest.NewRequest(http.MethodPost, "/repositories/"+repositoryID+"/check-bot-access", nil)
 	checkReq.Header.Set("Authorization", "Bearer "+token)
-	checkReq.Header.Set("X-User-Id", userID)
 	checkRes := httptest.NewRecorder()
 	app.router.ServeHTTP(checkRes, checkReq)
 	if checkRes.Code != http.StatusOK {
@@ -35,7 +37,6 @@ func TestRepositoryIntegrationBotAccessDenied(t *testing.T) {
 
 	checkReq := httptest.NewRequest(http.MethodPost, "/repositories/"+repositoryID+"/check-bot-access", nil)
 	checkReq.Header.Set("Authorization", "Bearer "+token)
-	checkReq.Header.Set("X-User-Id", userID)
 	checkRes := httptest.NewRecorder()
 	app.router.ServeHTTP(checkRes, checkReq)
 	if checkRes.Code != http.StatusForbidden {
@@ -53,7 +54,6 @@ func createRepositoryViaAPI(t *testing.T, app *testApp, userID, token string) st
 	body, _ := json.Marshal(map[string]string{"gitlab_repo_url": app.gitlab.RepoURL()})
 	req := httptest.NewRequest(http.MethodPost, "/repositories", bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("X-User-Id", userID)
 	req.Header.Set("Content-Type", "application/json")
 	res := httptest.NewRecorder()
 	app.router.ServeHTTP(res, req)

@@ -12,7 +12,7 @@ if [[ -f .env ]]; then
 fi
 
 if command -v docker >/dev/null 2>&1; then
-  docker compose up -d postgres redis
+  docker compose -f docker-compose.infra.yml up -d
   ./scripts/run-migrations.sh
 else
   echo "Docker is not available; assuming PostgreSQL and Redis are already running."

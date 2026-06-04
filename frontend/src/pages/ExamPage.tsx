@@ -2,7 +2,7 @@ import { ExamTakingSection } from '@/domains/exam/pageSection/ExamTakingSection'
 
 export function ExamPage() {
   return (
-    <main>
+    <main className="page-shell">
       <ExamTakingSection />
     </main>
   )

@@ -23,6 +23,10 @@ type Config struct {
 	LogLevel    string
 	HTTPPort    int
 
+	DevSeedUserName     string
+	DevSeedUserEmail    string
+	DevSeedUserPassword string
+
 	DatabaseURL string
 	PostgresDSN string // Deprecated alias for DatabaseURL.
 
@@ -41,10 +45,11 @@ type Config struct {
 	GitLabBotToken    string
 	GitLabBotUsername string
 
-	AIBaseURL        string
-	AIAPIKey         string
-	AIModel          string
-	AITimeoutSeconds int
+	AIBaseURL            string
+	AIAPIKey             string
+	AIModel              string
+	AITimeoutSeconds     int
+	InternalServiceToken string
 
 	JWTSecret                     string
 	AuthJWTHS256Secret            string // Deprecated alias for JWTSecret.
@@ -161,10 +166,13 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 	jwtSecret := firstNonEmpty(get("JWT_SECRET"), get("AUTH_JWT_HS256_SECRET"))
 
 	cfg := Config{
-		AppEnv:      firstNonEmpty(get("APP_ENV"), "development"),
-		ServiceName: serviceName,
-		LogLevel:    firstNonEmpty(get("LOG_LEVEL"), "info"),
-		HTTPPort:    httpPort,
+		AppEnv:              firstNonEmpty(get("APP_ENV"), "development"),
+		ServiceName:         serviceName,
+		LogLevel:            firstNonEmpty(get("LOG_LEVEL"), "info"),
+		HTTPPort:            httpPort,
+		DevSeedUserName:     firstNonEmpty(get("DEV_SEED_USER_NAME"), "Student User"),
+		DevSeedUserEmail:    firstNonEmpty(get("DEV_SEED_USER_EMAIL"), "student@example.com"),
+		DevSeedUserPassword: firstNonEmpty(get("DEV_SEED_USER_PASSWORD"), "correct-password"),
 
 		DatabaseURL: databaseURL,
 		PostgresDSN: databaseURL,
@@ -184,10 +192,11 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 		GitLabBotToken:    get("GITLAB_BOT_TOKEN"),
 		GitLabBotUsername: get("GITLAB_BOT_USERNAME"),
 
-		AIBaseURL:        firstNonEmpty(get("AI_BASE_URL"), "https://api.openai.com"),
-		AIAPIKey:         get("AI_API_KEY"),
-		AIModel:          firstNonEmpty(get("AI_MODEL"), "gpt-4.1-mini"),
-		AITimeoutSeconds: aiTimeout,
+		AIBaseURL:            firstNonEmpty(get("AI_BASE_URL"), "https://api.openai.com"),
+		AIAPIKey:             get("AI_API_KEY"),
+		AIModel:              firstNonEmpty(get("AI_MODEL"), "gpt-4.1-mini"),
+		AITimeoutSeconds:     aiTimeout,
+		InternalServiceToken: get("INTERNAL_SERVICE_TOKEN"),
 
 		JWTSecret:                     jwtSecret,
 		AuthJWTHS256Secret:            jwtSecret,
@@ -198,7 +207,7 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 		TomorrowSchoolSSORedirectURL:  get("TOMORROW_SCHOOL_SSO_REDIRECT_URL"),
 
 		ExamTimezone:    firstNonEmpty(get("EXAM_TIMEZONE"), "Asia/Shanghai"),
-		ExamOpenDOW:     firstNonEmpty(get("EXAM_OPEN_DOW"), "Saturday"),
+		ExamOpenDOW:     firstNonEmpty(get("EXAM_OPEN_DOW"), "Friday"),
 		ExamPassPercent: passPercent,
 	}
 	return cfg, nil

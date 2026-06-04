@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package integration
 
 import (
@@ -62,7 +65,7 @@ func TestAuthIntegrationLoginMeAndInvalidLogin(t *testing.T) {
 	}
 	var badEnv apiEnvelope
 	_ = json.Unmarshal(badRes.Body.Bytes(), &badEnv)
-	if badEnv.Success || badEnv.Error == nil || badEnv.Error.Code != "INVALID_CREDENTIALS" || badEnv.Data != nil {
+	if badEnv.Success || badEnv.Error == nil || badEnv.Error.Code != "INVALID_CREDENTIALS" || string(badEnv.Data) != "null" {
 		t.Fatalf("invalid login must use shared error envelope: %+v body=%s", badEnv, badRes.Body.String())
 	}
 }

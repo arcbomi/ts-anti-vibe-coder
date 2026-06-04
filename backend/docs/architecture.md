@@ -22,7 +22,7 @@ User logs in
   -> backend validates bot access
   -> backend reads safe repository files
   -> AI generates 20 English-only A/B/C/D questions
-  -> user attends offline Saturday exam
+  -> user attends offline Friday exam
   -> backend grades answers
   -> passing user is marked as understanding the repository
 ```
@@ -209,7 +209,7 @@ Exam lifecycle and grading authority.
 
 Responsibilities:
 
-- Create Saturday offline exam sessions.
+- Create Friday offline exam sessions.
 - Assign exactly 20 questions.
 - Accept user answers.
 - Grade answers on the backend.
@@ -221,7 +221,7 @@ Exam rules:
 - 20 questions.
 - A/B/C/D only.
 - English only.
-- Offline every Saturday.
+- Offline every Friday.
 - Passing score is configurable with `EXAM_PASS_PERCENT`, defaulting to 70%.
 
 ### Worker Service

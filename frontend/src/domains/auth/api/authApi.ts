@@ -1,12 +1,22 @@
 import { ApiError, apiFetch } from '@/shared/api/client'
-import type { AuthUser, LoginRequest, LoginResponse } from '@/domains/auth/types/auth.types'
+import type { AuthUser, LoginRequest, LoginResponse, RawLoginResponse } from '@/domains/auth/types/auth.types'
+
+function normalizeLoginResponse(response: RawLoginResponse): LoginResponse {
+  return {
+    user: response.user,
+    token: response.access_token ?? response.token ?? '',
+  }
+}
 
 export const authApi = {
-  login: (request: LoginRequest) =>
-    apiFetch<LoginResponse>('/auth/login', {
+  login: async (request: LoginRequest) => {
+    const response = await apiFetch<RawLoginResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(request),
-    }),
+    })
+
+    return normalizeLoginResponse(response)
+  },
 
   logout: async () => {
     try {

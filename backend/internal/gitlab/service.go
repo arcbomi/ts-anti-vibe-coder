@@ -30,6 +30,7 @@ type Service interface {
 	CheckBotAccess(ctx context.Context, userID string, repositoryID string) (*Repository, error)
 	StartAnalysis(ctx context.Context, userID string, repositoryID string) (*AnalysisJob, error)
 	GetRepository(ctx context.Context, userID string, repositoryID string) (*Repository, error)
+	GetAnalysisJob(ctx context.Context, userID string, analysisJobID string) (*AnalysisJob, error)
 	ReadSafeRepositoryFiles(ctx context.Context, userID string, repositoryID string) (*SafeRepositorySnapshot, error)
 }
 
@@ -132,6 +133,9 @@ func (s *ReaderService) StartAnalysis(ctx context.Context, userID string, reposi
 		msg.Branch = "main"
 	}
 	if err := s.queue.PublishAnalysisJob(ctx, msg); err != nil {
+		if failErr := s.store.FailAnalysisJob(ctx, userID, job.ID, "Unable to enqueue analysis job."); failErr != nil {
+			s.log.Error("analysis job failure status update failed", "repository_id", repositoryID, "job_id", job.ID, "request_id", logger.RequestIDFromContext(ctx), "err", failErr)
+		}
 		s.log.Error("analysis job publish failed", "repository_id", repositoryID, "job_id", job.ID, "request_id", logger.RequestIDFromContext(ctx), "err", err)
 		return nil, appError(ErrCodeQueuePublishFailed, "Unable to enqueue analysis job.", http.StatusBadGateway, err)
 	}
@@ -150,6 +154,23 @@ func (s *ReaderService) GetRepository(ctx context.Context, userID string, reposi
 		return nil, mapStoreError(err)
 	}
 	return repo, nil
+}
+
+func (s *ReaderService) GetAnalysisJob(ctx context.Context, userID string, analysisJobID string) (*AnalysisJob, error) {
+	if err := validateUserID(userID); err != nil {
+		return nil, err
+	}
+	if _, err := uuid.Parse(analysisJobID); err != nil {
+		return nil, appError("ANALYSIS_JOB_NOT_FOUND", "Analysis job not found.", http.StatusNotFound, err)
+	}
+	job, err := s.store.GetAnalysisJob(ctx, userID, analysisJobID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, appError("ANALYSIS_JOB_NOT_FOUND", "Analysis job not found.", http.StatusNotFound, err)
+		}
+		return nil, appError(ErrCodeInternal, "Internal server error.", http.StatusInternalServerError, err)
+	}
+	return job, nil
 }
 
 func (s *ReaderService) ReadSafeRepositoryFiles(ctx context.Context, userID string, repositoryID string) (*SafeRepositorySnapshot, error) {

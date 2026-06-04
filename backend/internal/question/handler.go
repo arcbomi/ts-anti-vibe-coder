@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	sdkerrors "backend/pkg/sdk/errors"
+	"backend/pkg/sdk/middleware"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -35,7 +36,12 @@ func (h *Handler) SaveGeneratedQuestions(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) GetQuestionsByAnalysisJob(w http.ResponseWriter, r *http.Request) {
-	resp, err := h.service.GetQuestionsByAnalysisJob(r.Context(), chi.URLParam(r, "analysisJobId"))
+	userID, ok := currentUserID(r)
+	if !ok {
+		sdkerrors.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication is required.")
+		return
+	}
+	resp, err := h.service.GetQuestionsByAnalysisJob(r.Context(), userID, chi.URLParam(r, "analysisJobId"))
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -44,7 +50,12 @@ func (h *Handler) GetQuestionsByAnalysisJob(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *Handler) GetExamQuestions(w http.ResponseWriter, r *http.Request) {
-	resp, err := h.service.GetExamQuestions(r.Context(), chi.URLParam(r, "examId"))
+	userID, ok := currentUserID(r)
+	if !ok {
+		sdkerrors.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication is required.")
+		return
+	}
+	resp, err := h.service.GetExamQuestions(r.Context(), userID, chi.URLParam(r, "examId"))
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -85,6 +96,14 @@ func subtleEqual(a, b string) bool {
 		v |= a[i] ^ b[i]
 	}
 	return v == 0
+}
+
+func currentUserID(r *http.Request) (string, bool) {
+	user, ok := middleware.CurrentAuthenticatedUser(r.Context())
+	if !ok || strings.TrimSpace(user.UserID) == "" {
+		return "", false
+	}
+	return user.UserID, true
 }
 
 func writeServiceError(w http.ResponseWriter, err error) {

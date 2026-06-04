@@ -28,18 +28,19 @@ const (
 var ErrNotFound = errors.New("repository not found")
 
 type Repository struct {
-	ID                string    `json:"repository_id"`
-	UserID            string    `json:"user_id,omitempty"`
-	GitLabRepoURL     string    `json:"gitlab_repo_url"`
-	GitLabProjectPath string    `json:"gitlab_project_path,omitempty"`
-	DefaultBranch     string    `json:"default_branch,omitempty"`
-	BotAccessStatus   string    `json:"bot_access_status"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at,omitempty"`
+	ID                  string    `json:"id"`
+	UserID              string    `json:"user_id,omitempty"`
+	GitLabRepoURL       string    `json:"gitlab_repo_url"`
+	GitLabProjectPath   string    `json:"gitlab_project_path,omitempty"`
+	DefaultBranch       string    `json:"default_branch,omitempty"`
+	BotAccessStatus     string    `json:"bot_access_status"`
+	LatestAnalysisJobID *string   `json:"latest_analysis_job_id,omitempty"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at,omitempty"`
 }
 
 type AnalysisJob struct {
-	ID           string     `json:"analysis_job_id"`
+	ID           string     `json:"id"`
 	UserID       string     `json:"user_id,omitempty"`
 	RepositoryID string     `json:"repository_id,omitempty"`
 	Status       string     `json:"status"`

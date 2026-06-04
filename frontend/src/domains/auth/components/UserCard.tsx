@@ -9,10 +9,12 @@ type UserCardProps = {
 
 export function UserCard({ user, isLoading = false, onLogout }: UserCardProps) {
   return (
-    <section aria-label="Current user">
-      <div>{user.name}</div>
-      <div>{user.email}</div>
-      <Button type="button" disabled={isLoading} onClick={onLogout}>
+    <section className="user-card" aria-label="Current user">
+      <div className="user-card__identity">
+        <strong>{user.name}</strong>
+        <span>{user.email}</span>
+      </div>
+      <Button type="button" disabled={isLoading} onClick={onLogout} className="button--secondary">
         {isLoading ? 'Logging out...' : 'Logout'}
       </Button>
     </section>

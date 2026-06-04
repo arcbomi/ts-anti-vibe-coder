@@ -26,7 +26,7 @@ func main() {
 
 	aiClient := aiclient.New(cfg.AIBaseURL, cfg.AIAPIKey, cfg.AIModel, aiclient.WithTimeout(time.Duration(cfg.AITimeoutSeconds)*time.Second))
 	analysisService := analysis.NewService(aiClient)
-	analysisHandler := analysis.NewHandler(analysisService)
+	analysisHandler := analysis.NewHandler(analysisService, cfg.InternalServiceToken)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID())

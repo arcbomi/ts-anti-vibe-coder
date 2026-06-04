@@ -21,10 +21,12 @@ export function useRepositories() {
       try {
         const repository = await repositoryApi.create({ gitlab_repo_url: gitlabRepoUrl })
         repositoryStore.getState().setRepository(repository)
+        return repository
       } catch (error) {
         repositoryStore
           .getState()
           .setError(errorMessage(error, 'Unable to connect this GitLab repository.'))
+        return null
       } finally {
         repositoryStore.getState().setCreating(false)
       }

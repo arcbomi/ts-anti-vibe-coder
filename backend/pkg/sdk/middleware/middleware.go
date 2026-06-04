@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"backend/pkg/sdk/authn"
 	"backend/pkg/sdk/errors"
 	"backend/pkg/sdk/logger"
 
@@ -15,6 +16,13 @@ import (
 )
 
 type authContextKey struct{}
+type currentUserContextKey struct{}
+
+type CurrentUser struct {
+	UserID string
+	Email  string
+	Name   string
+}
 
 // RequestID injects an X-Request-Id response header and request context value.
 func RequestID() func(http.Handler) http.Handler {
@@ -73,7 +81,7 @@ func CORS() func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Authorization,Content-Type,X-Request-Id")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization,Content-Type,X-Request-Id,X-User-Id")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
 				return
@@ -86,8 +94,8 @@ func CORS() func(http.Handler) http.Handler {
 // Auth is a simple bearer-token placeholder that stores the token in request context.
 func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-		if token == "" || token == r.Header.Get("Authorization") {
+		token := authn.BearerToken(r)
+		if token == "" {
 			errors.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Bearer token is required")
 			return
 		}
@@ -99,4 +107,76 @@ func Auth(next http.Handler) http.Handler {
 func BearerTokenFromContext(ctx context.Context) string {
 	v, _ := ctx.Value(authContextKey{}).(string)
 	return v
+}
+
+func RequireJWTIdentity(validator *authn.Validator) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token := authn.BearerToken(r)
+			if token == "" {
+				errors.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Bearer token is required")
+				return
+			}
+			claims, err := validator.Validate(token)
+			if err != nil {
+				code := "UNAUTHORIZED"
+				message := "Authentication is required."
+				if err == authn.ErrTokenExpired {
+					code = "TOKEN_EXPIRED"
+					message = "Token has expired."
+				}
+				errors.WriteError(w, http.StatusUnauthorized, code, message)
+				return
+			}
+
+			identity := authn.IdentityFromClaims(claims)
+			headerUserID := strings.TrimSpace(r.Header.Get("X-User-Id"))
+			if headerUserID != "" && headerUserID != identity.UserID {
+				errors.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication is required.")
+				return
+			}
+
+			r.Header.Set("X-User-Id", identity.UserID)
+			ctx := authn.WithIdentity(r.Context(), identity)
+			ctx = context.WithValue(ctx, currentUserContextKey{}, CurrentUser(identity))
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func CurrentAuthenticatedUser(ctx context.Context) (CurrentUser, bool) {
+	user, ok := ctx.Value(currentUserContextKey{}).(CurrentUser)
+	return user, ok
+}
+
+func RequireInternalToken(token string) func(http.Handler) http.Handler {
+	expected := strings.TrimSpace(token)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if expected == "" {
+				errors.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Internal service authentication is required.")
+				return
+			}
+			if subtleEqual(strings.TrimSpace(r.Header.Get("X-Internal-Service-Token")), expected) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if subtleEqual(authn.BearerToken(r), expected) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			errors.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Internal service authentication is required.")
+		})
+	}
+}
+
+func subtleEqual(a, b string) bool {
+	if len(a) != len(b) || a == "" {
+		return false
+	}
+	var v byte
+	for i := range a {
+		v |= a[i] ^ b[i]
+	}
+	return v == 0
 }

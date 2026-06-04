@@ -158,6 +158,9 @@ func (r *JobRunner) analyzeCode(ctx context.Context, msg AnalysisJobMessage, ind
 	prompt := buildRepositoryAnalysisPrompt(string(payload))
 	analysis, err := r.ai.GenerateJSON(ctx, prompt)
 	if err != nil {
+		if isInvalidAIResponse(err) {
+			return nil, NewPermanentError(ErrCodeAIOutputInvalid, err.Error(), err)
+		}
 		return nil, ClassifyExternalError(ErrCodeAITimeout, err)
 	}
 	r.logJob(msg, StatusAnalyzingCode).Info("repository analyzed")
@@ -328,6 +331,9 @@ func (r *JobRunner) generateQuestions(ctx context.Context, msg AnalysisJobMessag
 	prompt := buildQuestionGenerationPrompt(analysisResult)
 	raw, err := r.ai.GenerateJSON(ctx, prompt)
 	if err != nil {
+		if isInvalidAIResponse(err) {
+			return nil, NewPermanentError(ErrCodeAIOutputInvalid, err.Error(), err)
+		}
 		return nil, ClassifyExternalError(ErrCodeAITimeout, err)
 	}
 	questions, err := analysis.ParseAndValidateQuestions(raw)
@@ -363,6 +369,14 @@ func (r *JobRunner) logJob(msg AnalysisJobMessage, status string) *slog.Logger {
 		log = slog.Default()
 	}
 	return log.With("job_id", msg.JobID, "user_id", msg.UserID, "repository_id", msg.RepositoryID, "status", status, "attempt", msg.Attempt)
+}
+
+func isInvalidAIResponse(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "not valid json") || strings.Contains(msg, "did not include choices")
 }
 
 func summarizeFile(f RepositoryFile) string {

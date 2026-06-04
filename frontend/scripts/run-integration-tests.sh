@@ -8,4 +8,4 @@ if ! npx --no-install vitest --version >/dev/null 2>&1; then
   exit 1
 fi
 
-npx --no-install vitest run "tests/integration/**/*.integration.test.tsx" --environment jsdom
+npx --no-install vitest run --config vitest.config.ts

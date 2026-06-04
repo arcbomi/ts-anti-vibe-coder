@@ -37,6 +37,12 @@ Optional future SSO configuration:
 - `TOMORROW_SCHOOL_SSO_CLIENT_SECRET=`
 - `TOMORROW_SCHOOL_SSO_REDIRECT_URL=`
 
+Development-only local seed user:
+
+- `DEV_SEED_USER_NAME=Student User`
+- `DEV_SEED_USER_EMAIL=student@example.com`
+- `DEV_SEED_USER_PASSWORD=correct-password`
+
 ## Future plan
 
 In the future, this auth service should support Tomorrow School own account system or Tomorrow School SSO, including:

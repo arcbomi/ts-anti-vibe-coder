@@ -12,17 +12,20 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service       *Service
+	internalToken string
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, internalToken string) *Handler {
+	return &Handler{service: service, internalToken: strings.TrimSpace(internalToken)}
 }
 
 func (h *Handler) Routes() http.Handler {
 	r := chi.NewRouter()
-	r.Use(middleware.Auth)
-	r.Post("/analysis/generate-questions", h.generateQuestions)
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RequireInternalToken(h.internalToken))
+		r.Post("/analysis/generate-questions", h.generateQuestions)
+	})
 	return r
 }
 
@@ -53,9 +56,6 @@ func (h *Handler) generateQuestions(w http.ResponseWriter, r *http.Request) {
 	userID := strings.TrimSpace(req.UserID)
 	if headerUserID := strings.TrimSpace(r.Header.Get("X-User-Id")); headerUserID != "" {
 		userID = headerUserID
-	}
-	if userID == "" {
-		userID = middleware.BearerTokenFromContext(r.Context())
 	}
 	input := RepositoryInput{
 		UserID:         userID,

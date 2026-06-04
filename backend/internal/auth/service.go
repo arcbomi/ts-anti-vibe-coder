@@ -109,6 +109,43 @@ func (s *Service) CurrentUser(ctx context.Context, token string) (PublicUser, er
 	return toPublicUser(user), nil
 }
 
+func (s *Service) EnsureDevSeedUser(ctx context.Context, name, email, password string) error {
+	email, err := normalizeEmail(email)
+	if err != nil {
+		return fmt.Errorf("%w: invalid email", ErrInvalidRequest)
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("%w: name is required", ErrInvalidRequest)
+	}
+	if len(password) < minPasswordLength {
+		return fmt.Errorf("%w: password must be at least %d characters", ErrInvalidRequest, minPasswordLength)
+	}
+
+	passwordHash, err := HashPassword(password)
+	if err != nil {
+		return err
+	}
+
+	user := User{
+		ID:           uuid.NewString(),
+		Email:        email,
+		Name:         name,
+		PasswordHash: passwordHash,
+		AuthProvider: "local",
+	}
+
+	if _, err := s.repository.GetUserByEmail(ctx, email); errors.Is(err, ErrUserNotFound) {
+		_, err = s.repository.CreateUser(ctx, user)
+		return err
+	} else if err != nil {
+		return err
+	}
+
+	_, err = s.repository.UpdateUserForDevSeed(ctx, user)
+	return err
+}
+
 func normalizeEmail(email string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	addr, err := mail.ParseAddress(email)

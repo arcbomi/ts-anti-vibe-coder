@@ -31,8 +31,8 @@ func (e *AppError) Unwrap() error { return e.Cause }
 
 type Service interface {
 	SaveGeneratedQuestions(ctx context.Context, req SaveGeneratedQuestionsRequest) (SaveGeneratedQuestionsResponse, error)
-	GetQuestionsByAnalysisJob(ctx context.Context, analysisJobID string) (QuestionsResponse, error)
-	GetExamQuestions(ctx context.Context, examID string) (QuestionsResponse, error)
+	GetQuestionsByAnalysisJob(ctx context.Context, userID string, analysisJobID string) (QuestionsResponse, error)
+	GetExamQuestions(ctx context.Context, userID string, examID string) (QuestionsResponse, error)
 	GetAnswerKey(ctx context.Context, examID string) (AnswerKeyResponse, error)
 }
 
@@ -59,11 +59,14 @@ func (s *QuestionService) SaveGeneratedQuestions(ctx context.Context, req SaveGe
 	return SaveGeneratedQuestionsResponse{SavedCount: count}, nil
 }
 
-func (s *QuestionService) GetQuestionsByAnalysisJob(ctx context.Context, analysisJobID string) (QuestionsResponse, error) {
+func (s *QuestionService) GetQuestionsByAnalysisJob(ctx context.Context, userID string, analysisJobID string) (QuestionsResponse, error) {
+	if err := validateUUID(userID, "user id"); err != nil {
+		return QuestionsResponse{}, appError(ErrCodeBadRequest, err.Error(), http.StatusBadRequest, err)
+	}
 	if err := validateUUID(analysisJobID, "analysis job id"); err != nil {
 		return QuestionsResponse{}, appError(ErrCodeBadRequest, err.Error(), http.StatusBadRequest, err)
 	}
-	questions, err := s.store.GetQuestionsByAnalysisJob(ctx, analysisJobID)
+	questions, err := s.store.GetQuestionsByAnalysisJob(ctx, userID, analysisJobID)
 	if err != nil {
 		return QuestionsResponse{}, mapStoreError(err, "Questions not found.")
 	}
@@ -71,14 +74,17 @@ func (s *QuestionService) GetQuestionsByAnalysisJob(ctx context.Context, analysi
 	for _, q := range questions {
 		dtos = append(dtos, toPublicQuestion(q, true))
 	}
-	return QuestionsResponse{Questions: dtos}, nil
+	return QuestionsResponse{ID: analysisJobID, AnalysisJobID: analysisJobID, QuestionsCount: len(dtos), Questions: dtos}, nil
 }
 
-func (s *QuestionService) GetExamQuestions(ctx context.Context, examID string) (QuestionsResponse, error) {
+func (s *QuestionService) GetExamQuestions(ctx context.Context, userID string, examID string) (QuestionsResponse, error) {
+	if err := validateUUID(userID, "user id"); err != nil {
+		return QuestionsResponse{}, appError(ErrCodeBadRequest, err.Error(), http.StatusBadRequest, err)
+	}
 	if err := validateUUID(examID, "exam id"); err != nil {
 		return QuestionsResponse{}, appError(ErrCodeBadRequest, err.Error(), http.StatusBadRequest, err)
 	}
-	questions, err := s.store.GetQuestionsByExam(ctx, examID)
+	questions, err := s.store.GetQuestionsByExam(ctx, userID, examID)
 	if err != nil {
 		return QuestionsResponse{}, mapStoreError(err, "Exam questions not found.")
 	}
@@ -95,14 +101,14 @@ func (s *QuestionService) GetExamQuestions(ctx context.Context, examID string) (
 		}
 		dtos = append(dtos, PublicQuestionDTO{ID: q.ID, Question: q.Question, Options: options, Difficulty: q.Difficulty})
 	}
-	return QuestionsResponse{Questions: dtos}, nil
+	return QuestionsResponse{ID: examID, ExamID: examID, QuestionsCount: len(dtos), Questions: dtos}, nil
 }
 
 func (s *QuestionService) GetAnswerKey(ctx context.Context, examID string) (AnswerKeyResponse, error) {
 	if err := validateUUID(examID, "exam id"); err != nil {
 		return AnswerKeyResponse{}, appError(ErrCodeBadRequest, err.Error(), http.StatusBadRequest, err)
 	}
-	questions, err := s.store.GetQuestionsByExam(ctx, examID)
+	questions, err := s.store.GetQuestionsByExamForInternal(ctx, examID)
 	if err != nil {
 		return AnswerKeyResponse{}, mapStoreError(err, "Exam questions not found.")
 	}

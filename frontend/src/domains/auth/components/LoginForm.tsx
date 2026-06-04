@@ -23,7 +23,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <div>
+      <div className="field">
         <label htmlFor="auth-email">Email</label>
         <input
           id="auth-email"
@@ -36,7 +36,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         />
       </div>
 
-      <div>
+      <div className="field">
         <label htmlFor="auth-password">Password</label>
         <input
           id="auth-password"
@@ -53,7 +53,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       {isLoading ? <LoadingState label="Signing in..." /> : null}
 
       <Button type="submit" disabled={isLoading}>
-        {isLoading ? 'Logging in...' : 'Login'}
+        {isLoading ? 'Logging in...' : 'Log in'}
       </Button>
     </form>
   )

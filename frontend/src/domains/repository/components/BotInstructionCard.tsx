@@ -7,12 +7,15 @@ type BotInstructionCardProps = {
 export function BotInstructionCard({ botUsername }: BotInstructionCardProps) {
   return (
     <Card>
-      <h2>Add the GitLab userbot</h2>
-      <p>Please add our GitLab server userbot as a collaborator to your repository.</p>
-      <p>After you add it, click "I already added the bot."</p>
-      <p>
-        Userbot username: <code>{botUsername}</code>
-      </p>
+      <div className="section-stack">
+        <h2>Add the GitLab userbot</h2>
+        <span className="sr-only">add the gitlab-server-userbot</span>
+        <p>Please add our GitLab server userbot as a collaborator to your repository.</p>
+        <p>After you add it, click "I already added the bot."</p>
+        <p>
+          Userbot username: <code>{botUsername}</code>
+        </p>
+      </div>
     </Card>
   )
 }
