@@ -9,6 +9,8 @@ type RawRepository = {
   id?: string
   repository_id?: string
   gitea_repo_url: string
+  gitea_project_path?: string
+  tomorrow_audit_text?: string
   bot_access_status: Repository['bot_access_status']
   latest_analysis_job_id?: string | null
   latestAnalysisJobId?: string | null
@@ -22,6 +24,8 @@ function normalizeRepository(repository: RawRepository): Repository {
   return {
     id: repository.id ?? repository.repository_id ?? '',
     gitea_repo_url: repository.gitea_repo_url,
+    gitea_project_path: repository.gitea_project_path,
+    tomorrow_audit_text: repository.tomorrow_audit_text,
     bot_access_status: repository.bot_access_status,
     latestAnalysisJobId: repository.latestAnalysisJobId ?? repository.latest_analysis_job_id ?? null,
     latestAnalysisStatus: repository.latestAnalysisStatus ?? repository.latest_analysis_status ?? null,
@@ -31,6 +35,10 @@ function normalizeRepository(repository: RawRepository): Repository {
 
 export const repositoryApi = {
   list: async () => (await apiFetch<RawRepository[]>('/repositories')).map(normalizeRepository),
+
+  syncTomorrow: async () => (await apiFetch<RawRepository[]>('/repositories/sync-tomorrow', {
+    method: 'POST',
+  })).map(normalizeRepository),
 
   create: async (request: CreateRepositoryRequest) => {
     const repository = await apiFetch<RawRepository>('/repositories', {

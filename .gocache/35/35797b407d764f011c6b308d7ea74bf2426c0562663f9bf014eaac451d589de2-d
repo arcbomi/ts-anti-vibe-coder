@@ -1,0 +1,10 @@
+./doc.go
+./dto.go
+./handler.go
+./mapper.go
+./model.go
+./randomizer.go
+./repository.go
+./router.go
+./service.go
+./validator.go

@@ -12,19 +12,15 @@ import type {
 
 function normalizeExamQuestion(question: RawExamQuestion): Exam['questions'][number] {
   const rawOptions = question.options
-  const options = Array.isArray(rawOptions)
-    ? rawOptions.reduce<Exam['questions'][number]['options']>((acc, option, index) => {
-        const key = (option.key ?? (['A', 'B', 'C', 'D'] as const)[index]) as Exam['questions'][number]['options'][number]['key']
-        acc.push({
-          key,
-          text: option.text ?? '',
-        })
-        return acc
-      }, [])
-    : (['A', 'B', 'C', 'D'] as const).map((key) => ({
-        key,
-        text: rawOptions[key] ?? '',
-      }))
+  const optionKeys = ['A', 'B', 'C', 'D'] as const
+  const options = optionKeys.map((key, index) => {
+    if (!Array.isArray(rawOptions)) {
+      return { key, text: rawOptions[key] ?? '' }
+    }
+
+    const option = rawOptions.find((candidate) => candidate.key === key) ?? rawOptions[index]
+    return { key, text: option?.text ?? '' }
+  })
 
   return {
     id: question.id ?? question.question_id ?? '',
@@ -37,6 +33,8 @@ function normalizeExam(exam: RawExam): Exam {
   return {
     id: exam.id ?? exam.exam_id ?? '',
     status: exam.status as Exam['status'],
+    projectSlug: exam.projectSlug ?? exam.project_slug,
+    projectName: exam.projectName ?? exam.project_name,
     scheduledAt: exam.scheduledAt ?? exam.scheduled_at,
     startedAt: exam.startedAt ?? exam.started_at,
     submittedAt: exam.submittedAt ?? exam.submitted_at,
@@ -47,6 +45,7 @@ function normalizeExam(exam: RawExam): Exam {
 function normalizeExamResult(result: RawExamResult): ExamResult {
   return {
     examId: result.examId ?? result.exam_id ?? '',
+    projectSlug: result.projectSlug ?? result.project_slug,
     score: result.score,
     totalQuestions: result.totalQuestions ?? result.total_questions ?? 0,
     correctCount: result.correctCount ?? result.correct_count ?? 0,

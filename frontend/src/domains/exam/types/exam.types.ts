@@ -16,6 +16,8 @@ export interface ExamQuestion {
 export interface Exam {
   id: string
   status: ExamStatus
+  projectSlug?: string
+  projectName?: string
   scheduledAt?: string
   startedAt?: string
   submittedAt?: string
@@ -33,6 +35,7 @@ export interface SubmitExamRequest {
 
 export interface ExamResult {
   examId: string
+  projectSlug?: string
   score: number
   totalQuestions: number
   correctCount: number
@@ -65,6 +68,10 @@ export type RawExam = {
   id?: string
   exam_id?: string
   status: ExamStatus | string
+  projectSlug?: string
+  project_slug?: string
+  projectName?: string
+  project_name?: string
   scheduledAt?: string
   scheduled_at?: string
   startedAt?: string
@@ -77,6 +84,8 @@ export type RawExam = {
 export type RawExamResult = {
   examId?: string
   exam_id?: string
+  projectSlug?: string
+  project_slug?: string
   score: number
   totalQuestions?: number
   total_questions?: number

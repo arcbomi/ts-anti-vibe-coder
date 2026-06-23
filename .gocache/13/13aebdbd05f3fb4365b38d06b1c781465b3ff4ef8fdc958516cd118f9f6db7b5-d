@@ -1,0 +1,7 @@
+./client.go
+./model.go
+./parser.go
+./service.go
+./integration_test.go
+./parser_test.go
+./service_test.go

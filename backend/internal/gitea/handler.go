@@ -23,6 +23,7 @@ func NewHandler(service Service) *Handler {
 func (h *Handler) Routes() http.Handler {
 	r := chi.NewRouter()
 	r.Get("/repositories", h.listRepositories)
+	r.Post("/repositories/sync-tomorrow", h.syncTomorrowProjects)
 	r.Post("/repositories", h.createRepository)
 	r.Post("/repositories/{id}/check-bot-access", h.checkBotAccess)
 	r.Post("/repositories/{id}/start-analysis", h.startAnalysis)
@@ -60,6 +61,7 @@ type repositoryResponse struct {
 	RepositoryID               string     `json:"repository_id"`
 	GiteaRepoURL               string     `json:"gitea_repo_url"`
 	GiteaProjectPath           string     `json:"gitea_project_path,omitempty"`
+	TomorrowAuditText          string     `json:"tomorrow_audit_text,omitempty"`
 	DefaultBranch              string     `json:"default_branch,omitempty"`
 	BotAccessStatus            string     `json:"bot_access_status"`
 	CreatedAt                  string     `json:"created_at,omitempty"`
@@ -100,6 +102,20 @@ func (h *Handler) createRepository(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) listRepositories(w http.ResponseWriter, r *http.Request) {
 	repositories, err := h.service.ListRepositories(r.Context(), userIDFromRequest(r))
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	response := make([]repositoryResponse, 0, len(repositories))
+	for i := range repositories {
+		repo := repositories[i]
+		response = append(response, newRepositoryResponse(&repo))
+	}
+	sdkerrors.WriteSuccess(w, response)
+}
+
+func (h *Handler) syncTomorrowProjects(w http.ResponseWriter, r *http.Request) {
+	repositories, err := h.service.SyncTomorrowProjects(r.Context(), userIDFromRequest(r))
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -173,6 +189,7 @@ func newRepositoryResponse(repo *Repository) repositoryResponse {
 		RepositoryID:               repo.ID,
 		GiteaRepoURL:               repo.GiteaRepoURL,
 		GiteaProjectPath:           repo.GiteaProjectPath,
+		TomorrowAuditText:          repo.TomorrowAuditText,
 		DefaultBranch:              repo.DefaultBranch,
 		BotAccessStatus:            repo.BotAccessStatus,
 		CreatedAt:                  repo.CreatedAt.UTC().Format(time.RFC3339),

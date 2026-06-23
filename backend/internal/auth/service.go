@@ -8,6 +8,8 @@ import (
 	"net/mail"
 	"strings"
 
+	"backend/pkg/sdk/secretbox"
+
 	"github.com/google/uuid"
 )
 
@@ -52,14 +54,32 @@ type Service struct {
 	repository    userRepository
 	tokens        tokenManager
 	authenticator ExternalAuthenticator
+	credentialBox *secretbox.Cipher
 	log           *slog.Logger
 }
 
-func NewService(repository userRepository, tokens tokenManager, authenticator ExternalAuthenticator, log *slog.Logger) *Service {
+type ServiceOption func(*Service)
+
+func WithTomorrowCredentialSecret(secret string) ServiceOption {
+	return func(s *Service) {
+		box, err := secretbox.New(secret)
+		if err == nil {
+			s.credentialBox = box
+		}
+	}
+}
+
+func NewService(repository userRepository, tokens tokenManager, authenticator ExternalAuthenticator, log *slog.Logger, opts ...ServiceOption) *Service {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Service{repository: repository, tokens: tokens, authenticator: authenticator, log: log}
+	service := &Service{repository: repository, tokens: tokens, authenticator: authenticator, log: log}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(service)
+		}
+	}
+	return service
 }
 
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthResponse, error) {
@@ -89,8 +109,13 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 		ID:           uuid.NewString(),
 		Email:        email,
 		Name:         name,
+		FirstName:    "",
+		LastName:     "",
+		Username:     "",
 		PasswordHash: passwordHash,
 		AuthProvider: "local",
+		RemoteToken:  "",
+		ProfilePath:  "",
 	})
 	if err != nil {
 		if looksLikeUniqueViolation(err) {
@@ -134,14 +159,28 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (AuthResponse, er
 		return AuthResponse{}, ErrAuthProviderFailed
 	}
 
+	loginPassword := ""
+	if s.credentialBox != nil {
+		loginPassword, err = s.credentialBox.Encrypt(req.Password)
+		if err != nil {
+			s.log.Error("tomorrow credential encryption failed", "credential", credential, "err", err)
+			return AuthResponse{}, ErrAuthProviderFailed
+		}
+	}
+
 	user, err := s.repository.UpsertExternalUser(ctx, User{
-		ID:           uuid.NewString(),
-		Email:        email,
-		Name:         deriveDisplayName(email, identity.Username, identity.Name, identity.FullName, identity.FirstName, identity.LastName),
-		FirstName:    firstNonEmptyTrimmed(identity.FirstName),
-		LastName:     firstNonEmptyTrimmed(identity.LastName),
-		PasswordHash: "",
-		AuthProvider: "tomorrow-school",
+		ID:              uuid.NewString(),
+		Email:           email,
+		Name:            deriveDisplayName(email, identity.Username, identity.Name, identity.FullName, identity.FirstName, identity.LastName),
+		FirstName:       firstNonEmptyTrimmed(identity.FirstName),
+		LastName:        firstNonEmptyTrimmed(identity.LastName),
+		Username:        firstNonEmptyTrimmed(identity.Username),
+		LoginCredential: credential,
+		LoginPassword:   loginPassword,
+		PasswordHash:    "",
+		AuthProvider:    "tomorrow-school",
+		RemoteToken:     firstNonEmptyTrimmed(identity.RemoteToken),
+		ProfilePath:     "",
 	})
 	if err != nil {
 		return AuthResponse{}, err
@@ -202,8 +241,13 @@ func (s *Service) EnsureDevSeedUser(ctx context.Context, name, email, password s
 		ID:           uuid.NewString(),
 		Email:        email,
 		Name:         name,
+		FirstName:    "",
+		LastName:     "",
+		Username:     "",
 		PasswordHash: passwordHash,
 		AuthProvider: "local",
+		RemoteToken:  "",
+		ProfilePath:  "",
 	}
 
 	if _, err := s.repository.GetUserByEmail(ctx, email); errors.Is(err, ErrUserNotFound) {

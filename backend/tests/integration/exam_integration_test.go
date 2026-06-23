@@ -57,19 +57,29 @@ func TestExamIntegrationLoadsQuestionsWithoutAnswersAndGradesSubmission(t *testi
 	var questionsEnv apiEnvelope
 	_ = json.Unmarshal(body, &questionsEnv)
 	var qData struct {
-		ExamID    string `json:"exam_id"`
-		Questions []struct {
+		AttemptID   string `json:"attempt_id"`
+		ProjectSlug string `json:"project_slug"`
+		Status      string `json:"status"`
+		Questions   []struct {
+			ID         string            `json:"id"`
 			QuestionID string            `json:"question_id"`
+			Index      int               `json:"index"`
 			Question   string            `json:"question"`
 			Options    map[string]string `json:"options"`
 		} `json:"questions"`
 	}
 	_ = json.Unmarshal(questionsEnv.Data, &qData)
+	if qData.AttemptID != created.ExamID || qData.ProjectSlug != "project" || qData.Status != "ready_to_pass" {
+		t.Fatalf("unexpected exam payload: %s", string(questionsEnv.Data))
+	}
 	if len(qData.Questions) != 20 {
 		t.Fatalf("exam should load exactly 20 questions, got %d", len(qData.Questions))
 	}
 	answers := make([]map[string]string, 0, 20)
 	for i, q := range qData.Questions {
+		if q.ID == "" || q.QuestionID == "" || q.ID != q.QuestionID || q.Index != i+1 {
+			t.Fatalf("question should include stable id and 1-based index: %+v", q)
+		}
 		if len(q.Options) != 4 || q.Options["A"] == "" || q.Options["B"] == "" || q.Options["C"] == "" || q.Options["D"] == "" {
 			t.Fatalf("question does not include A/B/C/D options: %+v", q)
 		}
@@ -92,14 +102,18 @@ func TestExamIntegrationLoadsQuestionsWithoutAnswersAndGradesSubmission(t *testi
 	var resultEnv apiEnvelope
 	_ = json.Unmarshal(submitRes.Body.Bytes(), &resultEnv)
 	var result struct {
-		TotalQuestions int  `json:"total_questions"`
-		CorrectCount   int  `json:"correct_count"`
-		Score          int  `json:"score"`
-		PassingScore   int  `json:"passing_score"`
-		Passed         bool `json:"passed"`
+		AttemptID      string `json:"attempt_id"`
+		ProjectSlug    string `json:"project_slug"`
+		Total          int    `json:"total"`
+		TotalQuestions int    `json:"total_questions"`
+		CorrectCount   int    `json:"correct_count"`
+		Score          int    `json:"score"`
+		Status         string `json:"status"`
+		PassingScore   int    `json:"passing_score"`
+		Passed         bool   `json:"passed"`
 	}
 	_ = json.Unmarshal(resultEnv.Data, &result)
-	if result.TotalQuestions != 20 || result.CorrectCount != 14 || result.Score != 70 || !result.Passed || result.PassingScore != 70 {
+	if result.AttemptID != created.ExamID || result.ProjectSlug != "project" || result.Total != 20 || result.TotalQuestions != 20 || result.CorrectCount != 14 || result.Score != 14 || result.Status != "passed" || !result.Passed || result.PassingScore != 14 {
 		t.Fatalf("unexpected graded result: %s", submitRes.Body.String())
 	}
 
@@ -107,7 +121,7 @@ func TestExamIntegrationLoadsQuestionsWithoutAnswersAndGradesSubmission(t *testi
 	resultReq.Header.Set("Authorization", "Bearer "+token)
 	resultRes := httptest.NewRecorder()
 	app.router.ServeHTTP(resultRes, resultReq)
-	if resultRes.Code != http.StatusOK || !bytes.Contains(resultRes.Body.Bytes(), []byte(`"status":"graded"`)) {
+	if resultRes.Code != http.StatusOK || !bytes.Contains(resultRes.Body.Bytes(), []byte(`"status":"passed"`)) || !bytes.Contains(resultRes.Body.Bytes(), []byte(`"correct_option":"B"`)) || !bytes.Contains(resultRes.Body.Bytes(), []byte(`"explanation":"`)) {
 		t.Fatalf("result endpoint should return score and pass/fail: status=%d body=%s", resultRes.Code, resultRes.Body.String())
 	}
 }

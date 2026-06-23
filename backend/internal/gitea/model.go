@@ -21,6 +21,8 @@ const (
 	ErrCodeBotAccessDenied      = "BOT_ACCESS_DENIED"
 	ErrCodeGiteaAPIError        = "GITEA_API_ERROR"
 	ErrCodeQueuePublishFailed   = "QUEUE_PUBLISH_FAILED"
+	ErrCodeTomorrowNotConnected = "TOMORROW_NOT_CONNECTED"
+	ErrCodeTomorrowSyncFailed   = "TOMORROW_SYNC_FAILED"
 	ErrCodeUnauthorized         = "UNAUTHORIZED"
 	ErrCodeInternal             = "INTERNAL_ERROR"
 )
@@ -32,6 +34,7 @@ type Repository struct {
 	UserID                     string    `json:"user_id,omitempty"`
 	GiteaRepoURL               string    `json:"gitea_repo_url"`
 	GiteaProjectPath           string    `json:"gitea_project_path,omitempty"`
+	TomorrowAuditText          string    `json:"tomorrow_audit_text,omitempty"`
 	DefaultBranch              string    `json:"default_branch,omitempty"`
 	BotAccessStatus            string    `json:"bot_access_status"`
 	LatestAnalysisJobID        *string   `json:"latest_analysis_job_id,omitempty"`

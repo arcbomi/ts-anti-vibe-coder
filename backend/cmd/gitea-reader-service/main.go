@@ -6,10 +6,13 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
+	internalauth "backend/internal/auth"
 	internalgitea "backend/internal/gitea"
+	internaltomorrow "backend/internal/tomorrow"
 	"backend/pkg/sdk/authn"
 	"backend/pkg/sdk/config"
 	"backend/pkg/sdk/database"
@@ -46,6 +49,25 @@ func main() {
 
 	gl := giteaclient.New(cfg.GiteaBaseURL, cfg.GiteaBotToken)
 	filter := internalgitea.NewFileFilter(maxFileSizeBytes())
+	tomorrowBaseURL := strings.TrimRight(strings.TrimSpace(cfg.TomorrowSchoolAuthReferrer), "/")
+	if strings.Contains(tomorrowBaseURL, "/?") {
+		tomorrowBaseURL = strings.SplitN(tomorrowBaseURL, "/?", 2)[0]
+	}
+	if tomorrowBaseURL == "" {
+		tomorrowBaseURL = "https://01.tomorrow-school.ai"
+	}
+	tomorrowClient, err := internaltomorrow.NewHTTPClient(internaltomorrow.HTTPClientConfig{
+		BaseURL:      tomorrowBaseURL,
+		AuthEndpoint: cfg.TomorrowSchoolAuthEndpoint,
+		Referrer:     cfg.TomorrowSchoolAuthReferrer,
+		XJWTToken:    cfg.TomorrowSchoolAuthXJWTToken,
+		SessionID:    cfg.TomorrowSchoolAuthSessionID,
+		Timeout:      time.Duration(cfg.TomorrowSchoolAuthTimeoutSecs) * time.Second,
+	})
+	if err != nil {
+		log.Error("tomorrow client initialization failed", "err", err)
+		os.Exit(1)
+	}
 	validator, err := authn.NewValidator(cfg.JWTSecret)
 	if err != nil {
 		log.Error("jwt validator initialization failed", "err", err)
@@ -57,6 +79,9 @@ func main() {
 		gl,
 		queue.NewProducerWithQueue(redisClient, cfg.AnalysisQueueName),
 		filter,
+		tomorrowBaseURL,
+		tomorrowClient,
+		authTomorrowConnectionStore{repository: internalauth.NewRepository(db)},
 		log,
 	)
 	handler := internalgitea.NewHandler(service)
@@ -103,4 +128,23 @@ func maxFileSizeBytes() int {
 		return internalgitea.DefaultMaxFileSizeBytes
 	}
 	return parsed
+}
+
+type authTomorrowConnectionStore struct {
+	repository *internalauth.Repository
+}
+
+func (s authTomorrowConnectionStore) GetTomorrowConnection(ctx context.Context, userID string) (internalgitea.TomorrowConnection, error) {
+	if s.repository == nil {
+		return internalgitea.TomorrowConnection{}, nil
+	}
+	connection, err := s.repository.GetTomorrowConnection(ctx, userID)
+	if err != nil {
+		return internalgitea.TomorrowConnection{}, err
+	}
+	return internalgitea.TomorrowConnection{
+		Username:    connection.Username,
+		RemoteToken: connection.RemoteToken,
+		ProfilePath: connection.ProfilePath,
+	}, nil
 }

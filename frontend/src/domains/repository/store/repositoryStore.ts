@@ -5,22 +5,26 @@ type RepositoryState = {
   repositories: Repository[]
   repository: Repository | null
   isLoadingRepositories: boolean
+  isSyncingTomorrow: boolean
   isCreating: boolean
   isCheckingBotAccess: boolean
   isStartingAnalysis: boolean
   error: string | null
   analysisJobId: string | null
+  syncMessage: string | null
 }
 
 type RepositoryActions = {
   setRepositories: (repositories: Repository[]) => void
   setRepository: (repository: Repository | null) => void
   setLoadingRepositories: (isLoadingRepositories: boolean) => void
+  setSyncingTomorrow: (isSyncingTomorrow: boolean) => void
   setCreating: (isCreating: boolean) => void
   setCheckingBotAccess: (isCheckingBotAccess: boolean) => void
   setStartingAnalysis: (isStartingAnalysis: boolean) => void
   setError: (error: string | null) => void
   setAnalysisJobId: (analysisJobId: string | null) => void
+  setSyncMessage: (syncMessage: string | null) => void
   setBotAccessStatus: (status: BotAccessStatus) => void
   clearRepository: () => void
   reset: () => void
@@ -67,11 +71,13 @@ const initialState: RepositoryState = {
   repositories: [],
   repository: null,
   isLoadingRepositories: false,
+  isSyncingTomorrow: false,
   isCreating: false,
   isCheckingBotAccess: false,
   isStartingAnalysis: false,
   error: null,
   analysisJobId: null,
+  syncMessage: null,
 }
 
 export const repositoryStore = createStore<RepositoryStore>((set) => ({
@@ -92,6 +98,7 @@ export const repositoryStore = createStore<RepositoryStore>((set) => ({
       return { repository }
     }),
   setLoadingRepositories: (isLoadingRepositories) => set({ isLoadingRepositories }),
+  setSyncingTomorrow: (isSyncingTomorrow) => set({ isSyncingTomorrow }),
   setCreating: (isCreating) => set({ isCreating }),
   setCheckingBotAccess: (isCheckingBotAccess) => set({ isCheckingBotAccess }),
   setStartingAnalysis: (isStartingAnalysis) => set({ isStartingAnalysis }),
@@ -102,6 +109,7 @@ export const repositoryStore = createStore<RepositoryStore>((set) => ({
       writeStoredState(nextState)
       return { analysisJobId }
     }),
+  setSyncMessage: (syncMessage) => set({ syncMessage }),
   setBotAccessStatus: (botAccessStatus) =>
     set((state) => {
       const repository = state.repository ? { ...state.repository, bot_access_status: botAccessStatus } : null

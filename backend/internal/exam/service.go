@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
+
+	"backend/pkg/sdk/queue"
 
 	"github.com/google/uuid"
 )
@@ -44,23 +47,52 @@ type Service interface {
 	GetQuestions(ctx context.Context, userID string, examID string) (QuestionsResponse, error)
 	SubmitExam(ctx context.Context, userID string, examID string, req SubmitExamRequest) (ResultResponse, error)
 	GetResult(ctx context.Context, userID string, examID string) (ResultResponse, error)
+	PrepareSucceededProject(ctx context.Context, req PrepareSucceededProjectRequest) (PrepareSucceededProjectResponse, error)
+	ListSucceededProjects(ctx context.Context, userID string) (SucceededProjectsResponse, error)
+	StartSucceededProjectPreparation(ctx context.Context, userID string, projectSlug string) (StartSucceededProjectPreparationResponse, error)
+}
+
+type AnalysisJobPublisher interface {
+	PublishAnalysisJob(ctx context.Context, msg queue.AnalysisJobMessage) error
 }
 
 type ExamService struct {
 	store        Store
 	passingScore int
 	examOpenDOW  time.Weekday
+	repoJobs     RepoDownloadJobPublisher
+	projects     SucceededProjectSource
+	analysisJobs AnalysisJobPublisher
 }
 
 func NewService(store Store, passingScore int, examOpenDOW string) *ExamService {
-	if passingScore <= 0 || passingScore > 100 {
-		passingScore = 70
+	return NewServiceWithRepoJobs(store, passingScore, examOpenDOW, nil)
+}
+
+func NewServiceWithRepoJobs(store Store, passingScore int, examOpenDOW string, repoJobs RepoDownloadJobPublisher) *ExamService {
+	return NewServiceWithDependencies(store, passingScore, examOpenDOW, repoJobs, nil)
+}
+
+func NewServiceWithDependencies(store Store, passingScore int, examOpenDOW string, repoJobs RepoDownloadJobPublisher, projects SucceededProjectSource) *ExamService {
+	return NewServiceWithProjectPreparation(store, passingScore, examOpenDOW, repoJobs, projects, nil)
+}
+
+func NewServiceWithProjectPreparation(store Store, passingScore int, examOpenDOW string, repoJobs RepoDownloadJobPublisher, projects SucceededProjectSource, analysisJobs AnalysisJobPublisher) *ExamService {
+	if passingScore <= 0 || passingScore > QuestionCount {
+		passingScore = 14
 	}
 	weekday, ok := parseWeekday(examOpenDOW)
 	if !ok {
 		weekday = time.Friday
 	}
-	return &ExamService{store: store, passingScore: passingScore, examOpenDOW: weekday}
+	return &ExamService{
+		store:        store,
+		passingScore: passingScore,
+		examOpenDOW:  weekday,
+		repoJobs:     repoJobs,
+		projects:     projects,
+		analysisJobs: analysisJobs,
+	}
 }
 
 func (s *ExamService) CreateExam(ctx context.Context, userID string, req CreateExamRequest) (CreateExamResponse, error) {
@@ -171,12 +203,29 @@ func (s *ExamService) SubmitExam(ctx context.Context, userID string, examID stri
 	if err != nil {
 		return ResultResponse{}, err
 	}
-	score, passed := Grade(correctCount, len(questions), exam.PassingScore)
+	score, passed := Grade(correctCount, exam.PassingScore)
 	submittedAt := time.Now().UTC()
 	if err := s.store.SaveSubmission(ctx, exam.ID, answers, score, passed, submittedAt); err != nil {
 		return ResultResponse{}, databaseError("Unable to store exam submission.", err)
 	}
-	return ResultResponse{ExamID: exam.ID, Submitted: true, TotalQuestions: len(questions), CorrectCount: correctCount, Score: score, Passed: passed, PassingScore: exam.PassingScore}, nil
+	status := StatusFailed
+	if passed {
+		status = StatusPassed
+	}
+	return ResultResponse{
+		ID:             exam.ID,
+		ExamID:         exam.ID,
+		AttemptID:      exam.ID,
+		ProjectSlug:    projectSlugFromPath(exam.ProjectSlug),
+		Submitted:      true,
+		Total:          len(questions),
+		TotalQuestions: len(questions),
+		CorrectCount:   correctCount,
+		Score:          score,
+		Passed:         passed,
+		PassingScore:   exam.PassingScore,
+		Status:         status,
+	}, nil
 }
 
 func (s *ExamService) GetResult(ctx context.Context, userID string, examID string) (ResultResponse, error) {
@@ -184,14 +233,128 @@ func (s *ExamService) GetResult(ctx context.Context, userID string, examID strin
 	if err != nil {
 		return ResultResponse{}, err
 	}
-	if exam.Score == nil || exam.Passed == nil || exam.Status != StatusGraded {
+	if exam.Score == nil || exam.Passed == nil || exam.SubmittedAt == nil {
 		return ResultResponse{}, appError(ErrCodeBadRequest, "Exam has not been submitted yet.", http.StatusBadRequest, nil)
 	}
-	correctCount, err := s.store.CountCorrectAnswers(ctx, exam.ID)
+	resultAnswers, err := s.store.GetResultAnswers(ctx, exam.ID)
 	if err != nil {
 		return ResultResponse{}, databaseError("Unable to load exam result.", err)
 	}
-	return ResultResponse{ExamID: exam.ID, TotalQuestions: QuestionCount, CorrectCount: correctCount, Score: *exam.Score, Passed: *exam.Passed, PassingScore: exam.PassingScore, Status: exam.Status}, nil
+	correctCount := 0
+	for _, answer := range resultAnswers {
+		if answer.IsCorrect {
+			correctCount++
+		}
+	}
+	return ResultResponse{
+		ID:             exam.ID,
+		ExamID:         exam.ID,
+		AttemptID:      exam.ID,
+		ProjectSlug:    projectSlugFromPath(exam.ProjectSlug),
+		Total:          QuestionCount,
+		TotalQuestions: QuestionCount,
+		CorrectCount:   correctCount,
+		Score:          *exam.Score,
+		Passed:         *exam.Passed,
+		PassingScore:   exam.PassingScore,
+		Status:         normalizeAttemptStatus(exam),
+		Answers:        resultAnswers,
+	}, nil
+}
+
+func (s *ExamService) PrepareSucceededProject(ctx context.Context, req PrepareSucceededProjectRequest) (PrepareSucceededProjectResponse, error) {
+	if err := validatePreparationRequest(req); err != nil {
+		return PrepareSucceededProjectResponse{}, err
+	}
+	if s.repoJobs == nil {
+		return PrepareSucceededProjectResponse{}, appError(ErrCodeDatabase, "Preparation queue is not configured.", http.StatusInternalServerError, nil)
+	}
+	job, err := s.store.CreatePreparationJob(ctx, PreparationJob{
+		ID:          uuid.NewString(),
+		UserID:      req.UserID,
+		ProjectSlug: sanitizeProjectSlug(req.ProjectSlug),
+		RepoURL:     strings.TrimSpace(req.RepoURL),
+		AttemptID:   req.AttemptID,
+		Status:      PreparationJobPending,
+		CreatedAt:   time.Now().UTC(),
+	})
+	if err != nil {
+		return PrepareSucceededProjectResponse{}, databaseError("Unable to create preparation job.", err)
+	}
+	msg := RepoDownloadJobMessage{
+		JobID:       job.ID,
+		UserID:      job.UserID,
+		ProjectSlug: job.ProjectSlug,
+		RepoURL:     job.RepoURL,
+		AttemptID:   job.AttemptID,
+		Attempt:     1,
+	}
+	if err := s.repoJobs.PublishRepoDownloadJob(ctx, msg); err != nil {
+		_ = s.store.FailPreparationJob(ctx, job.ID, "Unable to enqueue repo download job.", time.Now().UTC())
+		return PrepareSucceededProjectResponse{}, appError(ErrCodeDatabase, "Unable to enqueue repo download job.", http.StatusBadGateway, err)
+	}
+	return PrepareSucceededProjectResponse{
+		JobID:       job.ID,
+		AttemptID:   job.AttemptID,
+		Status:      job.Status,
+		ProjectSlug: job.ProjectSlug,
+	}, nil
+}
+
+func (s *ExamService) ListSucceededProjects(ctx context.Context, userID string) (SucceededProjectsResponse, error) {
+	if err := validateUUID(userID, "user_id"); err != nil {
+		return SucceededProjectsResponse{}, badRequest(err)
+	}
+	projects, err := s.loadSucceededProjects(ctx, userID)
+	if err != nil {
+		return SucceededProjectsResponse{}, err
+	}
+	return SucceededProjectsResponse{Projects: projects}, nil
+}
+
+func (s *ExamService) StartSucceededProjectPreparation(ctx context.Context, userID string, projectSlug string) (StartSucceededProjectPreparationResponse, error) {
+	if err := validateUUID(userID, "user_id"); err != nil {
+		return StartSucceededProjectPreparationResponse{}, badRequest(err)
+	}
+
+	projects, err := s.loadSucceededProjects(ctx, userID)
+	if err != nil {
+		return StartSucceededProjectPreparationResponse{}, err
+	}
+
+	slug := sanitizeProjectSlug(projectSlug)
+	var selected *SucceededProject
+	for i := range projects {
+		if projects[i].ProjectSlug == slug {
+			selected = &projects[i]
+			break
+		}
+	}
+	if selected == nil {
+		return StartSucceededProjectPreparationResponse{}, appError(ErrCodeExamNotFound, "Succeeded project not found.", http.StatusNotFound, nil)
+	}
+	switch selected.PreparationStatus {
+	case SucceededProjectStatePreparing, SucceededProjectStateReady, SucceededProjectStatePassed:
+		return StartSucceededProjectPreparationResponse{}, appError(ErrCodeAlreadySubmitted, "Project preparation has already started.", http.StatusConflict, nil)
+	}
+	if s.repoJobs == nil {
+		return StartSucceededProjectPreparationResponse{}, appError(ErrCodeDatabase, "Project preparation queue is not configured.", http.StatusServiceUnavailable, nil)
+	}
+	attemptID := uuid.NewString()
+	resp, err := s.PrepareSucceededProject(ctx, PrepareSucceededProjectRequest{
+		UserID:      userID,
+		ProjectSlug: selected.ProjectSlug,
+		RepoURL:     selected.RepoURL,
+		AttemptID:   attemptID,
+	})
+	if err != nil {
+		return StartSucceededProjectPreparationResponse{}, err
+	}
+	return StartSucceededProjectPreparationResponse{
+		ProjectSlug:       resp.ProjectSlug,
+		PreparationStatus: SucceededProjectStatePreparing,
+		AttemptID:         resp.AttemptID,
+	}, nil
 }
 
 func (s *ExamService) getExam(ctx context.Context, userID string, examID string) (Exam, error) {
@@ -247,12 +410,212 @@ func buildGradedAnswers(examID string, questions []Question, submitted []Submitt
 	return answers, correctCount, nil
 }
 
+func (s *ExamService) loadSucceededProjects(ctx context.Context, userID string) ([]SucceededProject, error) {
+	if s.projects == nil {
+		return nil, appError(ErrCodeDatabase, "Succeeded project sync is not configured.", http.StatusServiceUnavailable, nil)
+	}
+
+	connection, err := s.store.GetTomorrowConnection(ctx, userID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, appError(ErrCodeExamNotFound, "User not found.", http.StatusNotFound, err)
+		}
+		return nil, databaseError("Unable to load Tomorrow sync settings.", err)
+	}
+
+	discovered, err := s.projects.ListSucceededProjects(ctx, connection)
+	if err != nil {
+		return nil, appError(ErrCodeDatabase, "Unable to sync succeeded projects from Tomorrow.", http.StatusBadGateway, err)
+	}
+
+	prepJobs, err := s.store.ListPreparationJobs(ctx, userID)
+	if err != nil {
+		return nil, databaseError("Unable to load preparation jobs.", err)
+	}
+	repositories, err := s.store.ListSucceededProjectRepositories(ctx, userID)
+	if err != nil {
+		return nil, databaseError("Unable to load succeeded project repositories.", err)
+	}
+	exams, err := s.store.ListUserExams(ctx, userID)
+	if err != nil {
+		return nil, databaseError("Unable to load exam attempts.", err)
+	}
+	examBySlug := map[string]Exam{}
+	for _, exam := range exams {
+		slug := projectSlugFromPath(exam.ProjectSlug)
+		if slug == "" {
+			continue
+		}
+		if _, exists := examBySlug[slug]; !exists {
+			examBySlug[slug] = exam
+		}
+	}
+	repositoryBySlug := map[string]SucceededProjectRepositoryRecord{}
+	for _, repository := range repositories {
+		slug := projectSlugFromPath(repository.ProjectPath)
+		if slug == "" {
+			continue
+		}
+		if _, exists := repositoryBySlug[slug]; !exists {
+			repositoryBySlug[slug] = repository
+		}
+	}
+
+	items := make([]SucceededProject, 0, len(discovered))
+	for _, project := range discovered {
+		if !project.IsSucceeded {
+			continue
+		}
+		item := SucceededProject{
+			ProjectSlug:   sanitizeProjectSlug(project.Slug),
+			ProjectName:   strings.TrimSpace(project.Name),
+			ProjectStatus: strings.TrimSpace(project.Status),
+			RepoURL:       strings.TrimSpace(project.RepoURL),
+			AuditText:     strings.TrimSpace(project.AuditText),
+		}
+		if ensuredExam, created, err := s.ensureReadyExam(ctx, userID, repositoryBySlug[item.ProjectSlug], examBySlug[item.ProjectSlug]); err != nil {
+			return nil, err
+		} else if created {
+			examBySlug[item.ProjectSlug] = ensuredExam
+		}
+		applyLocalProjectState(&item, prepJobs, examBySlug[item.ProjectSlug], repositoryBySlug[item.ProjectSlug])
+		items = append(items, item)
+	}
+
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].ProjectName < items[j].ProjectName
+	})
+	return items, nil
+}
+
+func (s *ExamService) ensureReadyExam(ctx context.Context, userID string, repository SucceededProjectRepositoryRecord, exam Exam) (Exam, bool, error) {
+	if exam.ID != "" || repository.RepositoryID == "" || repository.LatestAnalysisJobID == "" || repository.LatestAnalysisStatus != "completed" {
+		return exam, false, nil
+	}
+	resp, err := s.CreateExam(ctx, userID, CreateExamRequest{
+		RepositoryID:  repository.RepositoryID,
+		AnalysisJobID: repository.LatestAnalysisJobID,
+	})
+	if err != nil {
+		var appErr *AppError
+		if errors.As(err, &appErr) && (appErr.Code == ErrCodeNotEnoughQuestions || appErr.Code == ErrCodeExamNotFound) {
+			return exam, false, nil
+		}
+		return Exam{}, false, err
+	}
+	return Exam{
+		ID:            resp.ExamID,
+		UserID:        userID,
+		RepositoryID:  repository.RepositoryID,
+		ProjectSlug:   repository.ProjectPath,
+		AnalysisJobID: repository.LatestAnalysisJobID,
+		Status:        StatusReadyToPass,
+		CreatedAt:     time.Now().UTC(),
+	}, true, nil
+}
+
+func applyLocalProjectState(project *SucceededProject, prepJobs []PreparationJob, exam Exam, repository SucceededProjectRepositoryRecord) {
+	if project == nil {
+		return
+	}
+	slug := sanitizeProjectSlug(project.ProjectSlug)
+
+	if exam.ID != "" && projectSlugFromPath(exam.ProjectSlug) == slug {
+		if exam.Passed != nil {
+			if *exam.Passed {
+				project.PreparationStatus = SucceededProjectStatePassed
+				project.ExamID = exam.ID
+			} else {
+				project.PreparationStatus = SucceededProjectStateFailed
+				project.ExamID = exam.ID
+			}
+		} else {
+			project.PreparationStatus = SucceededProjectStateReady
+			project.ExamID = exam.ID
+		}
+		return
+	}
+
+	switch repository.LatestAnalysisStatus {
+	case "failed":
+		project.PreparationStatus = SucceededProjectStateGenerationFailed
+		project.PreparationErrorMessage = strings.TrimSpace(repository.LatestAnalysisErrorMessage)
+		return
+	case "completed", "pending", "checking_bot_access", "reading_repository", "indexing_code", "analyzing_code", "generating_questions", "saving_questions":
+		project.PreparationStatus = SucceededProjectStatePreparing
+		return
+	}
+
+	for _, job := range prepJobs {
+		if sanitizeProjectSlug(job.ProjectSlug) != slug {
+			continue
+		}
+		switch job.Status {
+		case PreparationJobFailed:
+			project.PreparationStatus = SucceededProjectStateGenerationFailed
+			project.PreparationErrorMessage = strings.TrimSpace(job.ErrorMessage)
+		case PreparationJobPending, PreparationJobDownloading, PreparationJobCompleted:
+			project.PreparationStatus = SucceededProjectStatePreparing
+		default:
+			project.PreparationStatus = SucceededProjectStatePreparing
+		}
+		return
+	}
+
+	project.PreparationStatus = SucceededProjectStateNotPrepared
+}
+
 func toExamResponse(e Exam) ExamResponse {
-	return ExamResponse{ID: e.ID, ExamID: e.ID, UserID: e.UserID, RepositoryID: e.RepositoryID, AnalysisJobID: e.AnalysisJobID, ScheduledAt: e.ScheduledAt, Status: e.Status, Score: e.Score, Passed: e.Passed, SubmittedAt: e.SubmittedAt}
+	return ExamResponse{
+		ID:            e.ID,
+		ExamID:        e.ID,
+		AttemptID:     e.ID,
+		ProjectSlug:   projectSlugFromPath(e.ProjectSlug),
+		UserID:        e.UserID,
+		RepositoryID:  e.RepositoryID,
+		AnalysisJobID: e.AnalysisJobID,
+		ScheduledAt:   e.ScheduledAt,
+		Status:        normalizeAttemptStatus(e),
+		Score:         e.Score,
+		Passed:        e.Passed,
+		SubmittedAt:   e.SubmittedAt,
+	}
 }
 
 func toPublicQuestion(q Question) PublicQuestion {
-	return PublicQuestion{QuestionID: q.ID, Question: q.Question, Options: map[string]string{OptionA: q.OptionA, OptionB: q.OptionB, OptionC: q.OptionC, OptionD: q.OptionD}, Difficulty: q.Difficulty, SourceFilePath: q.SourceFilePath}
+	return PublicQuestion{
+		ID:             q.ID,
+		QuestionID:     q.ID,
+		Index:          q.OrderIndex,
+		Question:       q.Question,
+		Options:        map[string]string{OptionA: q.OptionA, OptionB: q.OptionB, OptionC: q.OptionC, OptionD: q.OptionD},
+		Difficulty:     q.Difficulty,
+		SourceFilePath: q.SourceFilePath,
+	}
+}
+
+func normalizeAttemptStatus(e Exam) string {
+	if e.Passed != nil {
+		if *e.Passed {
+			return StatusPassed
+		}
+		return StatusFailed
+	}
+	switch e.Status {
+	case StatusPassed, StatusFailed:
+		return e.Status
+	default:
+		return StatusReadyToPass
+	}
+}
+
+func projectSlugFromPath(projectPath string) string {
+	projectPath = strings.TrimSpace(projectPath)
+	if projectPath == "" {
+		return ""
+	}
+	parts := strings.Split(projectPath, "/")
+	return strings.TrimSpace(parts[len(parts)-1])
 }
 
 func validateUUID(value, field string) error {
@@ -301,6 +664,16 @@ func badRequest(err error) error {
 
 func databaseError(message string, err error) error {
 	return appError(ErrCodeDatabase, message, http.StatusInternalServerError, err)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func appError(code string, message string, status int, cause error) *AppError {

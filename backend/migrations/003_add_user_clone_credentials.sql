@@ -1,0 +1,5 @@
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS tomorrow_login_credential TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS tomorrow_login_password TEXT NOT NULL DEFAULT '';

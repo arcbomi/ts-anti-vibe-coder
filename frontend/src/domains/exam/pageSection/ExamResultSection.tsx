@@ -10,10 +10,22 @@ interface ExamResultSectionProps {
   examId?: string
 }
 
+function formatProjectName(projectSlug?: string) {
+  if (!projectSlug) return 'Selected project'
+
+  return projectSlug
+    .split('/')
+    .at(-1)
+    ?.split(/[-_]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ') || 'Selected project'
+}
+
 export function ExamResultSection({ examId: examIdProp }: ExamResultSectionProps) {
   const params = useParams()
   const examId = examIdProp ?? params.examId
-  const { result, isLoading, error, loadResult } = useExam(examId)
+  const { exam, result, isLoading, error, loadResult } = useExam(examId)
 
   useEffect(() => {
     void loadResult()
@@ -24,6 +36,8 @@ export function ExamResultSection({ examId: examIdProp }: ExamResultSectionProps
   if (error && !result) return <ErrorState message={error} />
   if (!result) return <LoadingState label="Preparing exam result..." />
 
+  const projectName = exam?.projectName ?? formatProjectName(result.projectSlug || exam?.projectSlug)
+
   return (
     <section className="page-shell section-stack">
       <header className="section-stack">
@@ -33,6 +47,7 @@ export function ExamResultSection({ examId: examIdProp }: ExamResultSectionProps
             : 'Failed — review the repository and try again later.'}
         </p>
         <h1>Exam result</h1>
+        <p className="section-lede">{projectName}</p>
       </header>
 
       {error ? <ErrorState message={error} /> : null}

@@ -46,7 +46,11 @@ func main() {
 		SessionID:       cfg.TomorrowSchoolAuthSessionID,
 	}, log)
 	authRepository := auth.NewRepository(db)
-	authService := auth.NewService(authRepository, tokenManager, tomorrowSchoolClient, log)
+	if err := authRepository.EnsureSchema(context.Background()); err != nil {
+		log.Error("database schema initialization failed", "err", err)
+		os.Exit(1)
+	}
+	authService := auth.NewService(authRepository, tokenManager, tomorrowSchoolClient, log, auth.WithTomorrowCredentialSecret(cfg.JWTSecret))
 	authHandler := auth.NewHandler(authService)
 	if cfg.AppEnv == "development" {
 		if err := authService.EnsureDevSeedUser(

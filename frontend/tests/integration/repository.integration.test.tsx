@@ -17,13 +17,16 @@ afterEach(() => {
 })
 
 describe('repository integration flow', () => {
-  it('loads the user repository list, lets the user choose a repo, checks bot access, and enables question work', async () => {
+  it('syncs Tomorrow projects, lets the user choose a repo, checks bot access, and enables question work', async () => {
     localStorage.setItem('auth_token', 'jwt-from-backend')
     fetchMock
+      .mockResolvedValueOnce(jsonResponse([]))
       .mockResolvedValueOnce(jsonResponse([
         {
           repository_id: 'repo-1',
           gitea_repo_url: 'https://gitea.com/group/project',
+          gitea_project_path: 'dmukhat/go-reloaded',
+          tomorrow_audit_text: '5 peer audits required',
           bot_access_status: 'unknown',
           latest_analysis_status: null,
         },
@@ -33,9 +36,13 @@ describe('repository integration flow', () => {
     render(<MemoryRouter><RepositoryConnectSection /></MemoryRouter>)
 
     expect(await screen.findByText(/your repository list/i)).toBeTruthy()
+    expect(await screen.findByText(/no succeeded tomorrow projects found yet/i)).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: /refresh from tomorrow/i }))
+    expect(await screen.findByText(/synced 1 succeeded project/i)).toBeTruthy()
     await userEvent.click(screen.getByRole('button', { name: /choose this repo/i }))
 
     expect(await screen.findByText(/add the gitea userbot/i)).toBeTruthy()
+    expect(screen.getAllByText(/5 peer audits required/i).length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /i already added the bot/i })).toBeTruthy()
 
     await userEvent.click(screen.getByRole('button', { name: /i already added the bot/i }))
@@ -50,10 +57,12 @@ describe('repository integration flow', () => {
 
   it('shows a friendly access denied message when the bot is not a collaborator', async () => {
     fetchMock
+      .mockResolvedValueOnce(jsonResponse([]))
       .mockResolvedValueOnce(jsonResponse([
         {
           repository_id: 'repo-1',
           gitea_repo_url: 'https://gitea.com/group/project',
+          gitea_project_path: 'dmukhat/go-reloaded',
           bot_access_status: 'unknown',
         },
       ]))
@@ -61,10 +70,23 @@ describe('repository integration flow', () => {
 
     render(<MemoryRouter><RepositoryConnectSection /></MemoryRouter>)
 
+    await userEvent.click(await screen.findByRole('button', { name: /refresh from tomorrow/i }))
     await userEvent.click(await screen.findByRole('button', { name: /choose this repo/i }))
     await userEvent.click(await screen.findByRole('button', { name: /i already added the bot/i }))
 
     expect((await screen.findAllByText(/please add the bot as a collaborator/i)).length).toBeGreaterThan(0)
+  })
+
+  it('shows a clear sync error when Tomorrow refresh fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse(null, false, { code: 'TOMORROW_SYNC_FAILED', message: 'Unable to read your Tomorrow profile.' }, 502))
+
+    render(<MemoryRouter><RepositoryConnectSection /></MemoryRouter>)
+
+    await userEvent.click(await screen.findByRole('button', { name: /refresh from tomorrow/i }))
+
+    expect(await screen.findByText(/unable to read your tomorrow profile/i)).toBeTruthy()
   })
 })
 

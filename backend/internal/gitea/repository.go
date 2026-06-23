@@ -36,11 +36,48 @@ func (s *PostgresStore) EnsureSchema(ctx context.Context) error {
 			user_id UUID NOT NULL,
 			gitea_repo_url TEXT NOT NULL,
 			gitea_project_path TEXT NOT NULL,
+			tomorrow_audit_text TEXT NOT NULL DEFAULT '',
 			default_branch TEXT NOT NULL DEFAULT 'main',
 			bot_access_status TEXT NOT NULL DEFAULT 'unknown',
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 			updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 		)`,
+		`DO $$
+		BEGIN
+			IF EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_schema = current_schema()
+					AND table_name = 'repositories'
+					AND column_name = 'gitlab_repo_url'
+			) AND NOT EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_schema = current_schema()
+					AND table_name = 'repositories'
+					AND column_name = 'gitea_repo_url'
+			) THEN
+				ALTER TABLE repositories RENAME COLUMN gitlab_repo_url TO gitea_repo_url;
+			END IF;
+
+			IF EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_schema = current_schema()
+					AND table_name = 'repositories'
+					AND column_name = 'gitlab_project_path'
+			) AND NOT EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_schema = current_schema()
+					AND table_name = 'repositories'
+					AND column_name = 'gitea_project_path'
+			) THEN
+				ALTER TABLE repositories RENAME COLUMN gitlab_project_path TO gitea_project_path;
+			END IF;
+		END
+		$$`,
+		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS tomorrow_audit_text TEXT NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS idx_repositories_user_id ON repositories(user_id)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_repositories_user_project ON repositories(user_id, gitea_project_path)`,
 		`CREATE TABLE IF NOT EXISTS analysis_jobs (
@@ -78,20 +115,21 @@ func (s *PostgresStore) CreateRepository(ctx context.Context, repo *Repository) 
 		repo.BotAccessStatus = BotAccessUnknown
 	}
 
-	query := `INSERT INTO repositories (id, user_id, gitea_repo_url, gitea_project_path, default_branch, bot_access_status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	query := `INSERT INTO repositories (id, user_id, gitea_repo_url, gitea_project_path, tomorrow_audit_text, default_branch, bot_access_status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (user_id, gitea_project_path) DO UPDATE SET
 			gitea_repo_url = EXCLUDED.gitea_repo_url,
+			tomorrow_audit_text = EXCLUDED.tomorrow_audit_text,
 			bot_access_status = 'unknown',
 			updated_at = EXCLUDED.updated_at
-		RETURNING id, user_id, gitea_repo_url, gitea_project_path, default_branch, bot_access_status, created_at, updated_at`
-	return s.db.QueryRowContext(ctx, query, repo.ID, repo.UserID, repo.GiteaRepoURL, repo.GiteaProjectPath, repo.DefaultBranch, repo.BotAccessStatus, repo.CreatedAt, repo.UpdatedAt).Scan(
-		&repo.ID, &repo.UserID, &repo.GiteaRepoURL, &repo.GiteaProjectPath, &repo.DefaultBranch, &repo.BotAccessStatus, &repo.CreatedAt, &repo.UpdatedAt,
+		RETURNING id, user_id, gitea_repo_url, gitea_project_path, tomorrow_audit_text, default_branch, bot_access_status, created_at, updated_at`
+	return s.db.QueryRowContext(ctx, query, repo.ID, repo.UserID, repo.GiteaRepoURL, repo.GiteaProjectPath, repo.TomorrowAuditText, repo.DefaultBranch, repo.BotAccessStatus, repo.CreatedAt, repo.UpdatedAt).Scan(
+		&repo.ID, &repo.UserID, &repo.GiteaRepoURL, &repo.GiteaProjectPath, &repo.TomorrowAuditText, &repo.DefaultBranch, &repo.BotAccessStatus, &repo.CreatedAt, &repo.UpdatedAt,
 	)
 }
 
 func (s *PostgresStore) GetRepository(ctx context.Context, userID string, repositoryID string) (*Repository, error) {
-	query := `SELECT id, user_id, gitea_repo_url, gitea_project_path, default_branch, bot_access_status,
+	query := `SELECT id, user_id, gitea_repo_url, gitea_project_path, tomorrow_audit_text, default_branch, bot_access_status,
 			(
 				SELECT aj.id
 				FROM analysis_jobs aj
@@ -120,7 +158,7 @@ func (s *PostgresStore) GetRepository(ctx context.Context, userID string, reposi
 	var latestAnalysisStatus sql.NullString
 	var latestAnalysisErrorMessage sql.NullString
 	if err := s.db.QueryRowContext(ctx, query, repositoryID, userID).Scan(
-		&repo.ID, &repo.UserID, &repo.GiteaRepoURL, &repo.GiteaProjectPath, &repo.DefaultBranch, &repo.BotAccessStatus, &latestAnalysisJobID, &latestAnalysisStatus, &latestAnalysisErrorMessage, &repo.CreatedAt, &repo.UpdatedAt,
+		&repo.ID, &repo.UserID, &repo.GiteaRepoURL, &repo.GiteaProjectPath, &repo.TomorrowAuditText, &repo.DefaultBranch, &repo.BotAccessStatus, &latestAnalysisJobID, &latestAnalysisStatus, &latestAnalysisErrorMessage, &repo.CreatedAt, &repo.UpdatedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -140,7 +178,7 @@ func (s *PostgresStore) GetRepository(ctx context.Context, userID string, reposi
 }
 
 func (s *PostgresStore) ListRepositories(ctx context.Context, userID string) ([]Repository, error) {
-	query := `SELECT id, user_id, gitea_repo_url, gitea_project_path, default_branch, bot_access_status,
+	query := `SELECT id, user_id, gitea_repo_url, gitea_project_path, tomorrow_audit_text, default_branch, bot_access_status,
 			(
 				SELECT aj.id
 				FROM analysis_jobs aj
@@ -183,6 +221,7 @@ func (s *PostgresStore) ListRepositories(ctx context.Context, userID string) ([]
 			&repo.UserID,
 			&repo.GiteaRepoURL,
 			&repo.GiteaProjectPath,
+			&repo.TomorrowAuditText,
 			&repo.DefaultBranch,
 			&repo.BotAccessStatus,
 			&latestAnalysisJobID,
@@ -217,10 +256,10 @@ func (s *PostgresStore) UpdateBotAccess(ctx context.Context, userID string, repo
 	query := `UPDATE repositories
 		SET bot_access_status = $1, default_branch = COALESCE(NULLIF($2, ''), default_branch), updated_at = now()
 		WHERE id = $3 AND user_id = $4
-		RETURNING id, user_id, gitea_repo_url, gitea_project_path, default_branch, bot_access_status, created_at, updated_at`
+		RETURNING id, user_id, gitea_repo_url, gitea_project_path, tomorrow_audit_text, default_branch, bot_access_status, created_at, updated_at`
 	repo := &Repository{}
 	if err := s.db.QueryRowContext(ctx, query, status, defaultBranch, repositoryID, userID).Scan(
-		&repo.ID, &repo.UserID, &repo.GiteaRepoURL, &repo.GiteaProjectPath, &repo.DefaultBranch, &repo.BotAccessStatus, &repo.CreatedAt, &repo.UpdatedAt,
+		&repo.ID, &repo.UserID, &repo.GiteaRepoURL, &repo.GiteaProjectPath, &repo.TomorrowAuditText, &repo.DefaultBranch, &repo.BotAccessStatus, &repo.CreatedAt, &repo.UpdatedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound

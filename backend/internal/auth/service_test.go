@@ -50,6 +50,12 @@ func (r *stubRepository) UpdateUserForDevSeed(_ context.Context, user User) (Use
 func (r *stubRepository) UpsertExternalUser(_ context.Context, user User) (User, error) {
 	if existing, ok := r.usersByEmail[user.Email]; ok {
 		existing.Name = user.Name
+		existing.FirstName = user.FirstName
+		existing.LastName = user.LastName
+		existing.Username = user.Username
+		existing.LoginCredential = user.LoginCredential
+		existing.LoginPassword = user.LoginPassword
+		existing.RemoteToken = user.RemoteToken
 		existing.AuthProvider = user.AuthProvider
 		r.usersByEmail[user.Email] = existing
 		r.usersByID[existing.ID] = existing
@@ -115,6 +121,9 @@ func TestServiceLoginSuccessUsesTomorrowSchoolAndIssuesInternalJWT(t *testing.T)
 	if len(repo.upserted) != 1 || repo.upserted[0].AuthProvider != "tomorrow-school" || repo.upserted[0].PasswordHash != "" {
 		t.Fatalf("Login did not upsert a tomorrow-school user: %+v", repo.upserted)
 	}
+	if repo.upserted[0].LoginCredential != "student@example.com" || repo.upserted[0].LoginPassword != "" {
+		t.Fatalf("Login persisted unexpected clone credentials without cipher: %+v", repo.upserted[0])
+	}
 }
 
 func TestServiceLoginInvalidCredentials(t *testing.T) {
@@ -178,5 +187,33 @@ func TestServiceLoginAcceptsUsernameCredential(t *testing.T) {
 	}
 	if len(repo.upserted) != 1 || repo.upserted[0].Email != "student@example.com" {
 		t.Fatalf("Login did not persist provider email correctly: %+v", repo.upserted)
+	}
+}
+
+func TestServiceLoginEncryptsClonePasswordWhenSecretIsConfigured(t *testing.T) {
+	repo := newStubRepository()
+	service := NewService(repo, stubTokens{}, stubAuthenticator{
+		identity: ExternalIdentity{
+			Email:       "student@example.com",
+			Username:    "student-user",
+			RemoteToken: "remote-jwt",
+		},
+	}, nil, WithTomorrowCredentialSecret("jwt-secret"))
+
+	_, err := service.Login(context.Background(), LoginRequest{
+		Credential: "student-user",
+		Password:   "correct-password",
+	})
+	if err != nil {
+		t.Fatalf("Login returned error: %v", err)
+	}
+	if len(repo.upserted) != 1 {
+		t.Fatalf("upserted users = %d, want 1", len(repo.upserted))
+	}
+	if repo.upserted[0].LoginCredential != "student-user" {
+		t.Fatalf("LoginCredential = %q, want student-user", repo.upserted[0].LoginCredential)
+	}
+	if repo.upserted[0].LoginPassword == "" || repo.upserted[0].LoginPassword == "correct-password" {
+		t.Fatalf("LoginPassword should be encrypted: %+v", repo.upserted[0])
 	}
 }

@@ -1,11 +1,10 @@
 package exam
 
-func Grade(correctCount, totalQuestions, passingScore int) (int, bool) {
-	if totalQuestions <= 0 {
-		return 0, false
+func Grade(correctCount, passingScore int) (int, bool) {
+	if correctCount < 0 {
+		correctCount = 0
 	}
-	score := correctCount * 100 / totalQuestions
-	return score, score >= passingScore
+	return correctCount, correctCount >= passingScore
 }
 
 func IsValidOption(option string) bool {

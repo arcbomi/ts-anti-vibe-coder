@@ -34,7 +34,10 @@ export function useExam(examId?: string) {
   }, [examId])
 
   const selectAnswer = useCallback((questionId: string, option: ExamOptionKey) => {
-    examStore.getState().selectAnswer(questionId, option)
+    const { exam, isSubmitting, selectAnswer: storeSelectAnswer } = examStore.getState()
+    if (!exam || isSubmitting || ['submitted', 'passed', 'failed'].includes(exam.status)) return
+
+    storeSelectAnswer(questionId, option)
   }, [])
 
   const submitExam = useCallback(async () => {
@@ -43,15 +46,32 @@ export function useExam(examId?: string) {
       return null
     }
 
-    examStore.getState().setSubmitting(true)
-    examStore.getState().setError(null)
+    const state = examStore.getState()
+    if (state.isSubmitting || !state.exam || ['submitted', 'passed', 'failed'].includes(state.exam.status)) {
+      return null
+    }
+
+    const answers = state.exam.questions.map((question) => {
+      const selectedOption = state.selectedAnswers[question.id]
+      return selectedOption ? { questionId: question.id, selectedOption } : null
+    })
+
+    if (state.exam.questions.length !== 20 || answers.some((answer) => answer === null)) {
+      state.setError('Answer all 20 questions before submitting.')
+      return null
+    }
+
+    state.setSubmitting(true)
+    state.setError(null)
 
     try {
-      const answers = Object.entries(examStore.getState().selectedAnswers).map(([questionId, selectedOption]) => ({
-        questionId,
-        selectedOption,
-      }))
-      return await submitExamRequest(examId, { answers })
+      const response = await submitExamRequest(examId, {
+        answers: answers.filter((answer) => answer !== null),
+      })
+      if (response.submitted) {
+        examStore.getState().markSubmitted()
+      }
+      return response
     } catch (error) {
       examStore.getState().setError(getErrorMessage(error, 'Failed to submit exam.'))
       return null

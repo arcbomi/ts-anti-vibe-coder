@@ -7,15 +7,20 @@ import (
 
 // User is the persistent auth user record. PasswordHash is never serialized.
 type User struct {
-	ID           string
-	Email        string
-	Name         string
-	FirstName    string
-	LastName     string
-	PasswordHash string
-	AuthProvider string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID              string
+	Email           string
+	Name            string
+	FirstName       string
+	LastName        string
+	Username        string
+	LoginCredential string
+	LoginPassword   string
+	PasswordHash    string
+	AuthProvider    string
+	RemoteToken     string
+	ProfilePath     string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 // PublicUser is the user shape exposed by auth APIs and other services.
@@ -26,6 +31,15 @@ type PublicUser struct {
 	FullName  string `json:"full_name"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
+	Username  string `json:"username,omitempty"`
+}
+
+type TomorrowConnection struct {
+	Username        string
+	RemoteToken     string
+	ProfilePath     string
+	LoginCredential string
+	LoginPassword   string
 }
 
 func toPublicUser(user User) PublicUser {
@@ -38,6 +52,7 @@ func toPublicUser(user User) PublicUser {
 		FullName:  fullName,
 		FirstName: firstName,
 		LastName:  lastName,
+		Username:  firstNonEmptyTrimmed(user.Username),
 	}
 }
 

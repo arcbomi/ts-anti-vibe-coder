@@ -1,0 +1,4 @@
+# test log
+getenv RUN_TOMORROW_INTEGRATION
+open testdata/dmukhat_profile.html
+open testdata/dmukhat_profile.html

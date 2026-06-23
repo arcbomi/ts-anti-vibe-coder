@@ -76,7 +76,9 @@ export function RepositoryStatusSectionContent({ showInstructionCard = true }: R
               {repositories.map((item) => (
                 <div key={item.id} className="repo-card">
                   <div className="section-stack--tight">
-                    <strong>{item.gitea_repo_url}</strong>
+                    <strong>{item.gitea_project_path ?? item.gitea_repo_url}</strong>
+                    <p><code>{item.gitea_repo_url}</code></p>
+                    {item.tomorrow_audit_text ? <p>Audits: {item.tomorrow_audit_text}</p> : null}
                     <p>Question work: {questionWorkStatus(item.latestAnalysisStatus)}</p>
                   </div>
                   <Button
@@ -92,7 +94,7 @@ export function RepositoryStatusSectionContent({ showInstructionCard = true }: R
             </div>
           ) : (
             <p>
-              <Link to="/repository/connect">Choose a repository</Link>
+              <Link to="/repository/connect">Refresh from Tomorrow</Link>
             </p>
           )}
         </section>
@@ -116,6 +118,7 @@ export function RepositoryStatusSectionContent({ showInstructionCard = true }: R
           <p className="section-lede">
             Repository: <code>{repository.gitea_repo_url}</code>
           </p>
+          {repository.tomorrow_audit_text ? <p>Audits: {repository.tomorrow_audit_text}</p> : null}
           <BotAccessStatus status={repository.bot_access_status} />
           <p>Question work status: {questionWorkStatus(repository.latestAnalysisStatus)}</p>
           {repository.latestAnalysisStatus === 'failed' && repository.latestAnalysisErrorMessage ? (
@@ -150,7 +153,8 @@ export function RepositoryStatusSectionContent({ showInstructionCard = true }: R
                 .map((item) => (
                   <div key={item.id} className="repo-card repo-card--compact">
                     <div className="section-stack--tight">
-                      <strong>{item.gitea_repo_url}</strong>
+                      <strong>{item.gitea_project_path ?? item.gitea_repo_url}</strong>
+                      {item.tomorrow_audit_text ? <p>Audits: {item.tomorrow_audit_text}</p> : null}
                       <p>Question work: {questionWorkStatus(item.latestAnalysisStatus)}</p>
                     </div>
                     <Button type="button" onClick={() => selectRepository(item)}>

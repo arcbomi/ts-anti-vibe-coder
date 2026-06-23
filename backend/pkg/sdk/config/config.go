@@ -37,6 +37,8 @@ type Config struct {
 	QueueURL                    string
 	AnalysisQueueName           string
 	AnalysisDeadLetterQueueName string
+	RepoDownloadQueueName       string
+	RepoDownloadDeadLetterName  string
 	WorkerConcurrency           int
 	MaxJobAttempts              int
 	RetryDelaySeconds           int
@@ -62,10 +64,16 @@ type Config struct {
 	TomorrowSchoolAuthReferrer    string
 	TomorrowSchoolAuthXJWTToken   string
 	TomorrowSchoolAuthSessionID   string
+	TomorrowBaseURL               string
+	TomorrowUsername              string
+	TomorrowPassword              string
 
-	ExamTimezone    string
-	ExamOpenDOW     string
-	ExamPassPercent int
+	ExamTimezone            string
+	ExamOpenDOW             string
+	ExamPassScore           int
+	ExamPassPercent         int
+	RepoStorageRoot         string
+	RepoCloneTimeoutSeconds int
 }
 
 // HTTPAddr returns the address string expected by net/http servers.
@@ -151,6 +159,14 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid AI_TIMEOUT_SECONDS: %w", err)
 	}
+	repoCloneTimeout, err := parseInt(get("REPO_CLONE_TIMEOUT_SECONDS"), 60)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid REPO_CLONE_TIMEOUT_SECONDS: %w", err)
+	}
+	passScore, err := parseInt(get("EXAM_PASS_SCORE"), 14)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid EXAM_PASS_SCORE: %w", err)
+	}
 	passPercent, err := parseInt(get("EXAM_PASS_PERCENT"), 70)
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid EXAM_PASS_PERCENT: %w", err)
@@ -192,6 +208,8 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 		QueueURL:                    queueURL,
 		AnalysisQueueName:           firstNonEmpty(get("ANALYSIS_QUEUE_NAME"), "analysis_jobs"),
 		AnalysisDeadLetterQueueName: firstNonEmpty(get("ANALYSIS_DEAD_LETTER_QUEUE_NAME"), "analysis_jobs_dead"),
+		RepoDownloadQueueName:       firstNonEmpty(get("REPO_DOWNLOAD_QUEUE_NAME"), "repo_download_jobs"),
+		RepoDownloadDeadLetterName:  firstNonEmpty(get("REPO_DOWNLOAD_DEAD_LETTER_QUEUE_NAME"), "repo_download_jobs_dead"),
 		WorkerConcurrency:           workerConcurrency,
 		MaxJobAttempts:              maxJobAttempts,
 		RetryDelaySeconds:           retryDelaySeconds,
@@ -217,10 +235,16 @@ func load(serviceName string, allowServicePrefix bool) (Config, error) {
 		TomorrowSchoolAuthReferrer:    firstNonEmpty(get("TOMORROW_SCHOOL_AUTH_REFERRER"), "https://01.tomorrow-school.ai/?show-password=1"),
 		TomorrowSchoolAuthXJWTToken:   firstNonEmpty(get("TOMORROW_SCHOOL_AUTH_X_JWT_TOKEN"), "undefined"),
 		TomorrowSchoolAuthSessionID:   get("TOMORROW_SCHOOL_AUTH_SESSION_ID"),
+		TomorrowBaseURL:               firstNonEmpty(get("TOMORROW_BASE_URL"), "https://01.tomorrow-school.ai"),
+		TomorrowUsername:              get("TOMORROW_USERNAME"),
+		TomorrowPassword:              get("TOMORROW_PASSWORD"),
 
-		ExamTimezone:    firstNonEmpty(get("EXAM_TIMEZONE"), "Asia/Shanghai"),
-		ExamOpenDOW:     firstNonEmpty(get("EXAM_OPEN_DOW"), "Friday"),
-		ExamPassPercent: passPercent,
+		ExamTimezone:            firstNonEmpty(get("EXAM_TIMEZONE"), "Asia/Shanghai"),
+		ExamOpenDOW:             firstNonEmpty(get("EXAM_OPEN_DOW"), "Friday"),
+		ExamPassScore:           passScore,
+		ExamPassPercent:         passPercent,
+		RepoStorageRoot:         firstNonEmpty(get("REPO_STORAGE_ROOT"), "data/repos"),
+		RepoCloneTimeoutSeconds: repoCloneTimeout,
 	}
 	return cfg, nil
 }

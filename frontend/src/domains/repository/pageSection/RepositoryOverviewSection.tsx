@@ -44,7 +44,8 @@ export function RepositoryOverviewSection() {
               {repositories.slice(0, 3).map((item) => (
                 <div key={item.id} className="repo-summary-row">
                   <div>
-                    <strong>{item.gitea_repo_url}</strong>
+                    <strong>{item.gitea_project_path ?? item.gitea_repo_url}</strong>
+                    {item.tomorrow_audit_text ? <p>Audits: {item.tomorrow_audit_text}</p> : null}
                     <p>Question work: {questionWorkLabel(item.latestAnalysisStatus)}</p>
                   </div>
                   <Link to={repository?.id === item.id ? '/repository/status' : '/repository/connect'}>
@@ -56,9 +57,9 @@ export function RepositoryOverviewSection() {
           </>
         ) : (
           <>
-            <p className="section-lede">Choose a repository to test, or add one if it is not in your list yet.</p>
+            <p className="section-lede">Refresh your succeeded Tomorrow projects before choosing a repository to test.</p>
             <p>
-              <Link to="/repository/connect">Choose a repository</Link>
+              <Link to="/repository/connect">Refresh from Tomorrow</Link>
             </p>
           </>
         )}

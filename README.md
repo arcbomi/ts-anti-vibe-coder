@@ -181,6 +181,16 @@ Run smoke tests with one command after `make dev` is healthy:
 make smoke-test
 ```
 
+### Tomorrow Intra project discovery
+
+The Tomorrow Intra discovery package reads the target profile for `dmukhat` and returns only projects marked `Project succeeded`.
+
+Environment variables:
+
+- `TOMORROW_BASE_URL`: Tomorrow School origin, for example `https://01.tomorrow-school.ai`
+- The exam preparation flow now uses the logged-in user's encrypted Tomorrow credentials instead of shared repository credentials in local env files.
+- `RUN_TOMORROW_INTEGRATION=true`: optional flag that enables the live integration test for the discovery service
+
 ### Deployment-oriented Docker builds
 
 Production-style images can be built from the service Dockerfiles:

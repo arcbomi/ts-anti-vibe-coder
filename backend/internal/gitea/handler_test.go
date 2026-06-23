@@ -186,6 +186,11 @@ func (s *stubService) ListRepositories(_ context.Context, userID string) ([]Repo
 	return s.repositories, nil
 }
 
+func (s *stubService) SyncTomorrowProjects(_ context.Context, userID string) ([]Repository, error) {
+	s.listedUserIDs = append(s.listedUserIDs, userID)
+	return s.repositories, nil
+}
+
 func (s *stubService) CheckBotAccess(context.Context, string, string) (*Repository, error) {
 	panic("unexpected call")
 }

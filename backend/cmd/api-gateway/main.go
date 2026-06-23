@@ -82,6 +82,8 @@ func newRouterWithHandlers(log *slog.Logger, validator *authn.Validator, authPro
 	r.Handle("/auth", authProxy)
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireJWTIdentity(validator))
+		r.Handle("/succeeded-projects/*", examProxy)
+		r.Handle("/succeeded-projects", examProxy)
 		r.Handle("/repositories/*", giteaProxy)
 		r.Handle("/repositories", giteaProxy)
 		r.Handle("/analysis-jobs/{id}/questions", questionProxy)

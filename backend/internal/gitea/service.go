@@ -5,8 +5,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
+	"backend/internal/tomorrow"
 	"backend/pkg/sdk/giteaclient"
 	"backend/pkg/sdk/logger"
 	"backend/pkg/sdk/queue"
@@ -28,6 +30,7 @@ type QueuePublisher interface {
 type Service interface {
 	CreateRepository(ctx context.Context, userID string, repoURL string) (*Repository, error)
 	ListRepositories(ctx context.Context, userID string) ([]Repository, error)
+	SyncTomorrowProjects(ctx context.Context, userID string) ([]Repository, error)
 	CheckBotAccess(ctx context.Context, userID string, repositoryID string) (*Repository, error)
 	StartAnalysis(ctx context.Context, userID string, repositoryID string) (*AnalysisJob, error)
 	GetRepository(ctx context.Context, userID string, repositoryID string) (*Repository, error)
@@ -35,21 +38,49 @@ type Service interface {
 	ReadSafeRepositoryFiles(ctx context.Context, userID string, repositoryID string) (*SafeRepositorySnapshot, error)
 }
 
-type ReaderService struct {
-	store     Store
-	validator *Validator
-	gitea     GiteaClient
-	queue     QueuePublisher
-	filter    FileFilter
-	log       *slog.Logger
-	timeout   time.Duration
+type TomorrowConnection struct {
+	Username    string
+	RemoteToken string
+	ProfilePath string
 }
 
-func NewService(store Store, validator *Validator, gl GiteaClient, publisher QueuePublisher, filter FileFilter, log *slog.Logger) *ReaderService {
+type TomorrowConnectionStore interface {
+	GetTomorrowConnection(ctx context.Context, userID string) (TomorrowConnection, error)
+}
+
+type TomorrowProfileClient interface {
+	FetchProfilePage(ctx context.Context, session tomorrow.Session, profileURL string) (string, error)
+}
+
+type ReaderService struct {
+	store            Store
+	validator        *Validator
+	gitea            GiteaClient
+	queue            QueuePublisher
+	filter           FileFilter
+	log              *slog.Logger
+	timeout          time.Duration
+	tomorrowBaseURL  string
+	tomorrowProfiles TomorrowProfileClient
+	tomorrowUsers    TomorrowConnectionStore
+}
+
+func NewService(store Store, validator *Validator, gl GiteaClient, publisher QueuePublisher, filter FileFilter, tomorrowBaseURL string, tomorrowProfiles TomorrowProfileClient, tomorrowUsers TomorrowConnectionStore, log *slog.Logger) *ReaderService {
 	if log == nil {
 		log = logger.New("gitea-reader-service")
 	}
-	return &ReaderService{store: store, validator: validator, gitea: gl, queue: publisher, filter: filter, log: log, timeout: 15 * time.Second}
+	return &ReaderService{
+		store:            store,
+		validator:        validator,
+		gitea:            gl,
+		queue:            publisher,
+		filter:           filter,
+		log:              log,
+		timeout:          15 * time.Second,
+		tomorrowBaseURL:  strings.TrimRight(strings.TrimSpace(tomorrowBaseURL), "/"),
+		tomorrowProfiles: tomorrowProfiles,
+		tomorrowUsers:    tomorrowUsers,
+	}
 }
 
 func (s *ReaderService) CreateRepository(ctx context.Context, userID string, repoURL string) (*Repository, error) {
@@ -78,6 +109,65 @@ func (s *ReaderService) ListRepositories(ctx context.Context, userID string) ([]
 	if err := validateUserID(userID); err != nil {
 		return nil, err
 	}
+	repositories, err := s.store.ListRepositories(ctx, userID)
+	if err != nil {
+		return nil, appError(ErrCodeInternal, "Internal server error.", http.StatusInternalServerError, err)
+	}
+	return repositories, nil
+}
+
+func (s *ReaderService) SyncTomorrowProjects(ctx context.Context, userID string) ([]Repository, error) {
+	if err := validateUserID(userID); err != nil {
+		return nil, err
+	}
+	if s.tomorrowUsers == nil || s.tomorrowProfiles == nil || s.validator == nil {
+		return nil, appError(ErrCodeInternal, "Tomorrow sync is not configured.", http.StatusInternalServerError, nil)
+	}
+
+	connection, err := s.tomorrowUsers.GetTomorrowConnection(ctx, userID)
+	if err != nil {
+		return nil, appError(ErrCodeInternal, "Unable to read Tomorrow account connection.", http.StatusInternalServerError, err)
+	}
+	if strings.TrimSpace(connection.RemoteToken) == "" || strings.TrimSpace(connection.Username) == "" {
+		return nil, appError(ErrCodeTomorrowNotConnected, "Your Tomorrow account is not connected.", http.StatusConflict, nil)
+	}
+
+	profileHTML, err := s.tomorrowProfiles.FetchProfilePage(
+		ctx,
+		tomorrow.Session{JWT: strings.TrimSpace(connection.RemoteToken)},
+		firstNonEmpty(connection.ProfilePath, tomorrow.DefaultProfilePath),
+	)
+	if err != nil {
+		return nil, appError(ErrCodeTomorrowSyncFailed, "Unable to read your Tomorrow profile.", http.StatusBadGateway, err)
+	}
+
+	projects, err := tomorrow.ParseProjects(profileHTML, firstNonEmpty(s.tomorrowBaseURL, "https://01.tomorrow-school.ai"), connection.Username)
+	if err != nil {
+		return nil, appError(ErrCodeTomorrowSyncFailed, "Unable to parse your Tomorrow projects.", http.StatusBadGateway, err)
+	}
+
+	for _, project := range projects {
+		if !project.IsSucceeded {
+			continue
+		}
+		normalized, normalizeErr := s.validator.Normalize(project.RepoURL)
+		if normalizeErr != nil {
+			continue
+		}
+		repo := &Repository{
+			ID:                uuid.NewString(),
+			UserID:            userID,
+			GiteaRepoURL:      normalized.URL,
+			GiteaProjectPath:  normalized.ProjectPath,
+			TomorrowAuditText: strings.TrimSpace(project.AuditText),
+			DefaultBranch:     "main",
+			BotAccessStatus:   BotAccessUnknown,
+		}
+		if err := s.store.CreateRepository(ctx, repo); err != nil {
+			return nil, appError(ErrCodeInternal, "Unable to save Tomorrow projects.", http.StatusInternalServerError, err)
+		}
+	}
+
 	repositories, err := s.store.ListRepositories(ctx, userID)
 	if err != nil {
 		return nil, appError(ErrCodeInternal, "Internal server error.", http.StatusInternalServerError, err)
@@ -235,4 +325,13 @@ func mapStoreError(err error) error {
 
 func appError(code string, message string, status int, cause error) *AppError {
 	return &AppError{Code: code, Message: message, HTTPStatus: status, Cause: cause}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }

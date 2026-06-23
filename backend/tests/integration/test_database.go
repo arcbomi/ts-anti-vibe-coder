@@ -43,13 +43,18 @@ func resetTestDatabase(t *testing.T, db *sql.DB) {
 	ctx := context.Background()
 	statements := []string{
 		`CREATE EXTENSION IF NOT EXISTS pgcrypto`,
-		`DROP TABLE IF EXISTS exam_answers, exam_questions, exam_question_options, exams, generated_questions, questions, analysis_jobs, repositories, users CASCADE`,
+		`DROP TABLE IF EXISTS exam_answers, exam_questions, exam_question_options, preparation_jobs, exams, generated_questions, questions, analysis_jobs, repositories, users CASCADE`,
 		`CREATE TABLE users (
 			id UUID PRIMARY KEY,
 			email TEXT NOT NULL UNIQUE,
 			name TEXT NOT NULL,
+			first_name TEXT NOT NULL DEFAULT '',
+			last_name TEXT NOT NULL DEFAULT '',
+			username TEXT NOT NULL DEFAULT '',
 			password_hash TEXT NOT NULL,
 			auth_provider TEXT NOT NULL DEFAULT 'local',
+			tomorrow_remote_token TEXT NOT NULL DEFAULT '',
+			tomorrow_profile_path TEXT NOT NULL DEFAULT '',
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 			updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 		)`,
@@ -82,6 +87,20 @@ func createIntegrationUser(t *testing.T, db *sql.DB, email string) (userID strin
 	resp, err := svc.Register(context.Background(), auth.RegisterRequest{Name: "Integration User", Email: email, Password: "correct-password"})
 	if err != nil {
 		t.Fatalf("register integration user: %v", err)
+	}
+	return resp.User.ID, resp.AccessToken
+}
+
+func createConnectedIntegrationUser(t *testing.T, db *sql.DB, credential string) (userID string, token string) {
+	t.Helper()
+	tm, err := auth.NewTokenManager(integrationJWTSecret, 2_000_000_000_000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := auth.NewService(auth.NewRepository(db), tm, integrationAuthenticator{}, nil)
+	resp, err := svc.Login(context.Background(), auth.LoginRequest{Credential: credential, Password: "correct-password"})
+	if err != nil {
+		t.Fatalf("login integration user: %v", err)
 	}
 	return resp.User.ID, resp.AccessToken
 }

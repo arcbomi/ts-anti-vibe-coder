@@ -18,11 +18,13 @@ func TestLoadReadsSharedEnvironment(t *testing.T) {
 	t.Setenv("AI_MODEL", "model")
 	t.Setenv("INTERNAL_SERVICE_TOKEN", "internal-token")
 	t.Setenv("JWT_SECRET", "jwt-secret")
+	t.Setenv("EXAM_PASS_SCORE", "15")
 	t.Setenv("TOMORROW_SCHOOL_AUTH_ENDPOINT", "https://tomorrow.example.com/api/auth/signin")
 	t.Setenv("TOMORROW_SCHOOL_AUTH_TIMEOUT_SECONDS", "7")
 	t.Setenv("TOMORROW_SCHOOL_AUTH_REFERRER", "https://tomorrow.example.com/login")
 	t.Setenv("TOMORROW_SCHOOL_AUTH_X_JWT_TOKEN", "undefined")
 	t.Setenv("TOMORROW_SCHOOL_AUTH_SESSION_ID", "session-123")
+	t.Setenv("TOMORROW_BASE_URL", "https://tomorrow.example.com")
 
 	cfg := Load()
 
@@ -56,11 +58,15 @@ func TestLoadReadsSharedEnvironment(t *testing.T) {
 	if cfg.JWTAccessTokenTTLMinutes != 60 || cfg.JWTRefreshTokenTTLDays != 30 {
 		t.Fatalf("jwt ttl defaults not loaded: %#v", cfg)
 	}
+	if cfg.ExamPassScore != 15 {
+		t.Fatalf("ExamPassScore = %d, want 15", cfg.ExamPassScore)
+	}
 	if cfg.TomorrowSchoolAuthEndpoint != "https://tomorrow.example.com/api/auth/signin" ||
 		cfg.TomorrowSchoolAuthTimeoutSecs != 7 ||
 		cfg.TomorrowSchoolAuthReferrer != "https://tomorrow.example.com/login" ||
 		cfg.TomorrowSchoolAuthXJWTToken != "undefined" ||
-		cfg.TomorrowSchoolAuthSessionID != "session-123" {
+		cfg.TomorrowSchoolAuthSessionID != "session-123" ||
+		cfg.TomorrowBaseURL != "https://tomorrow.example.com" {
 		t.Fatalf("tomorrow school auth config not loaded: %#v", cfg)
 	}
 }
@@ -102,5 +108,8 @@ func TestLoadFromEnvDefaultsExamOpenDOWToFriday(t *testing.T) {
 	}
 	if cfg.ExamOpenDOW != "Friday" {
 		t.Fatalf("ExamOpenDOW = %q, want Friday", cfg.ExamOpenDOW)
+	}
+	if cfg.ExamPassScore != 14 {
+		t.Fatalf("ExamPassScore = %d, want 14", cfg.ExamPassScore)
 	}
 }

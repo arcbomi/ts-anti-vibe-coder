@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
 
-export function Card({ children }: { children: ReactNode }) {
-  return <div className="card">{children}</div>
+export function Card({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={className ? `card ${className}` : 'card'}>{children}</div>
 }

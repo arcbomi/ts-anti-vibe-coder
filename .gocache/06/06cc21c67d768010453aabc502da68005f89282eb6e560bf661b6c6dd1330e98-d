@@ -1,0 +1,9 @@
+./fake_ai_server.go
+./fake_gitlab_server.go
+./test_app.go
+./test_database.go
+./test_queue.go
+./analysis_integration_test.go
+./auth_integration_test.go
+./exam_integration_test.go
+./repository_integration_test.go

@@ -30,9 +30,35 @@ export function useRepositories() {
       }
     },
 
+    syncTomorrowProjects: async () => {
+      repositoryStore.getState().setSyncingTomorrow(true)
+      repositoryStore.getState().setError(null)
+      repositoryStore.getState().setSyncMessage(null)
+
+      try {
+        const repositories = await repositoryApi.syncTomorrow()
+        repositoryStore.getState().setRepositories(repositories)
+        repositoryStore.getState().setSyncMessage(
+          repositories.length > 0
+            ? `Synced ${repositories.length} succeeded ${repositories.length === 1 ? 'project' : 'projects'}.`
+            : 'No succeeded Tomorrow projects were found.',
+        )
+        if (repositories.length === 0) {
+          repositoryStore.getState().setRepository(null)
+        }
+        return repositories
+      } catch (error) {
+        repositoryStore.getState().setError(errorMessage(error, 'Unable to sync your Tomorrow projects.'))
+        return []
+      } finally {
+        repositoryStore.getState().setSyncingTomorrow(false)
+      }
+    },
+
     selectRepository: (repository: Repository | null) => {
       repositoryStore.getState().setRepository(repository)
       repositoryStore.getState().setError(null)
+      repositoryStore.getState().setSyncMessage(null)
       repositoryStore.getState().setAnalysisJobId(repository?.latestAnalysisJobId ?? null)
     },
 

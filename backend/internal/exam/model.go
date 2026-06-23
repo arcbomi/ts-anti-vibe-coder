@@ -5,12 +5,15 @@ import "time"
 const (
 	QuestionCount = 20
 
-	StatusCreated    = "created"
-	StatusScheduled  = "scheduled"
-	StatusInProgress = "in_progress"
-	StatusSubmitted  = "submitted"
-	StatusGraded     = "graded"
-	StatusCancelled  = "cancelled"
+	StatusCreated     = "created"
+	StatusScheduled   = "scheduled"
+	StatusInProgress  = "in_progress"
+	StatusSubmitted   = "submitted"
+	StatusGraded      = "graded"
+	StatusCancelled   = "cancelled"
+	StatusReadyToPass = "ready_to_pass"
+	StatusPassed      = "passed"
+	StatusFailed      = "failed"
 
 	OptionA = "A"
 	OptionB = "B"
@@ -22,6 +25,7 @@ type Exam struct {
 	ID            string
 	UserID        string
 	RepositoryID  string
+	ProjectSlug   string
 	AnalysisJobID string
 	ScheduledAt   time.Time
 	Status        string
@@ -73,8 +77,10 @@ type CreateExamResponse struct {
 }
 
 type ExamResponse struct {
-	ID            string           `json:"id"`
-	ExamID        string           `json:"exam_id"`
+	ID            string           `json:"id,omitempty"`
+	ExamID        string           `json:"exam_id,omitempty"`
+	AttemptID     string           `json:"attempt_id"`
+	ProjectSlug   string           `json:"project_slug"`
 	UserID        string           `json:"user_id,omitempty"`
 	RepositoryID  string           `json:"repository_id,omitempty"`
 	AnalysisJobID string           `json:"analysis_job_id,omitempty"`
@@ -87,7 +93,9 @@ type ExamResponse struct {
 }
 
 type PublicQuestion struct {
-	QuestionID     string            `json:"question_id"`
+	ID             string            `json:"id"`
+	QuestionID     string            `json:"question_id,omitempty"`
+	Index          int               `json:"index"`
 	Question       string            `json:"question"`
 	Options        map[string]string `json:"options"`
 	Difficulty     string            `json:"difficulty"`
@@ -109,12 +117,55 @@ type SubmittedAnswer struct {
 }
 
 type ResultResponse struct {
-	ExamID         string `json:"exam_id"`
-	Submitted      bool   `json:"submitted,omitempty"`
-	TotalQuestions int    `json:"total_questions"`
-	CorrectCount   int    `json:"correct_count"`
-	Score          int    `json:"score"`
-	Passed         bool   `json:"passed"`
-	PassingScore   int    `json:"passing_score"`
-	Status         string `json:"status,omitempty"`
+	ID             string         `json:"id,omitempty"`
+	ExamID         string         `json:"exam_id,omitempty"`
+	AttemptID      string         `json:"attempt_id"`
+	ProjectSlug    string         `json:"project_slug"`
+	Submitted      bool           `json:"submitted,omitempty"`
+	Total          int            `json:"total"`
+	TotalQuestions int            `json:"total_questions,omitempty"`
+	CorrectCount   int            `json:"correct_count,omitempty"`
+	Score          int            `json:"score"`
+	Passed         bool           `json:"passed"`
+	PassingScore   int            `json:"passing_score,omitempty"`
+	Status         string         `json:"status,omitempty"`
+	Answers        []ResultAnswer `json:"answers,omitempty"`
+}
+
+type ResultAnswer struct {
+	QuestionID     string `json:"question_id"`
+	SelectedOption string `json:"selected_option"`
+	IsCorrect      bool   `json:"is_correct"`
+	CorrectOption  string `json:"correct_option"`
+	Explanation    string `json:"explanation"`
+}
+
+const (
+	SucceededProjectStateNotPrepared      = "not_started"
+	SucceededProjectStatePreparing        = "preparing"
+	SucceededProjectStateReady            = "ready_to_pass"
+	SucceededProjectStatePassed           = "passed"
+	SucceededProjectStateFailed           = "failed"
+	SucceededProjectStateGenerationFailed = "failed_generation"
+)
+
+type SucceededProject struct {
+	ProjectSlug             string `json:"project_slug"`
+	ProjectName             string `json:"project_name"`
+	ProjectStatus           string `json:"project_status"`
+	RepoURL                 string `json:"repo_url"`
+	AuditText               string `json:"audit_text,omitempty"`
+	PreparationStatus       string `json:"preparation_status"`
+	PreparationErrorMessage string `json:"preparation_error_message,omitempty"`
+	ExamID                  string `json:"exam_id,omitempty"`
+}
+
+type SucceededProjectsResponse struct {
+	Projects []SucceededProject `json:"projects"`
+}
+
+type StartSucceededProjectPreparationResponse struct {
+	ProjectSlug       string `json:"project_slug"`
+	PreparationStatus string `json:"preparation_status"`
+	AttemptID         string `json:"attempt_id"`
 }

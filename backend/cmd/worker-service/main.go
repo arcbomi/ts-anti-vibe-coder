@@ -10,13 +10,17 @@ import (
 	"syscall"
 	"time"
 
+	"backend/internal/analysis"
+	internalexam "backend/internal/exam"
 	"backend/internal/worker"
 	"backend/pkg/sdk/aiclient"
 	"backend/pkg/sdk/config"
 	"backend/pkg/sdk/database"
+	"backend/pkg/sdk/events"
 	"backend/pkg/sdk/giteaclient"
 	"backend/pkg/sdk/logger"
 	"backend/pkg/sdk/queue"
+	"backend/pkg/sdk/secretbox"
 )
 
 func main() {
@@ -57,12 +61,28 @@ func main() {
 		Retry:           worker.RetryConfig{MaxAttempts: cfg.MaxJobAttempts, Delay: time.Duration(cfg.RetryDelaySeconds) * time.Second},
 	}, log)
 
+	examStore := internalexam.NewPostgresStore(db)
+	credentialBox, err := secretbox.New(cfg.JWTSecret)
+	if err != nil {
+		log.Error("tomorrow credential cipher initialization failed", "err", err)
+		os.Exit(1)
+	}
+	downloader := internalexam.NewGitDownloadService(cfg.RepoStorageRoot, examStore, credentialBox, time.Duration(cfg.RepoCloneTimeoutSeconds)*time.Second, log)
+	eventPublisher := events.NewRedisPublisher(redisClient)
+	analysisPublisher := queue.NewProducerWithQueue(redisClient, cfg.AnalysisQueueName)
+	preparer := internalexam.NewLocalQuestionPreparer(examStore, analysis.NewService(aiClient), log)
+	repoProcessor := internalexam.NewRepoDownloadProcessorWithPreparer(examStore, downloader, eventPublisher, analysisPublisher, preparer, log)
+	repoConsumer := internalexam.NewRepoDownloadConsumer(redisClient, cfg.RepoDownloadQueueName, cfg.RepoDownloadDeadLetterName, cfg.MaxJobAttempts, time.Duration(cfg.RetryDelaySeconds)*time.Second, repoProcessor, log)
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	healthServer := startHealthServer(cfg, log)
 
-	log.Info("worker service started", "queue", cfg.AnalysisQueueName, "dead_letter_queue", cfg.AnalysisDeadLetterQueueName, "concurrency", cfg.WorkerConcurrency)
-	if err := consumer.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+	log.Info("worker service started", "queue", cfg.AnalysisQueueName, "dead_letter_queue", cfg.AnalysisDeadLetterQueueName, "concurrency", cfg.WorkerConcurrency, "repo_download_queue", cfg.RepoDownloadQueueName)
+	errCh := make(chan error, 2)
+	go func() { errCh <- consumer.Run(ctx) }()
+	go func() { errCh <- repoConsumer.Run(ctx) }()
+	if err := <-errCh; err != nil && !errors.Is(err, context.Canceled) {
 		log.Error("worker service stopped with error", "err", err)
 		os.Exit(1)
 	}

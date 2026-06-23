@@ -4,8 +4,13 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
+  first_name TEXT NOT NULL DEFAULT '',
+  last_name TEXT NOT NULL DEFAULT '',
+  username TEXT NOT NULL DEFAULT '',
   password_hash TEXT NOT NULL,
   auth_provider TEXT NOT NULL DEFAULT 'local',
+  tomorrow_remote_token TEXT NOT NULL DEFAULT '',
+  tomorrow_profile_path TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -15,6 +20,7 @@ CREATE TABLE IF NOT EXISTS repositories (
   user_id UUID NOT NULL,
   gitea_repo_url TEXT NOT NULL,
   gitea_project_path TEXT NOT NULL,
+  tomorrow_audit_text TEXT NOT NULL DEFAULT '',
   default_branch TEXT NOT NULL DEFAULT 'main',
   bot_access_status TEXT NOT NULL DEFAULT 'unknown',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

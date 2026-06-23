@@ -5,6 +5,7 @@ interface SubmitExamButtonProps {
   isSubmitting?: boolean
   answeredCount: number
   totalCount: number
+  submitted?: boolean
   onSubmit: () => void
 }
 
@@ -13,9 +14,10 @@ export function SubmitExamButton({
   isSubmitting = false,
   answeredCount,
   totalCount,
+  submitted = false,
   onSubmit,
 }: SubmitExamButtonProps) {
-  const isDisabled = disabled || isSubmitting
+  const isDisabled = disabled || isSubmitting || submitted
 
   return (
     <div className="section-stack section-stack--tight">
@@ -28,7 +30,7 @@ export function SubmitExamButton({
         onClick={onSubmit}
         className="button--primary button--wide"
       >
-        {isSubmitting ? 'Submitting answers...' : 'Submit exam'}
+        {isSubmitting ? 'Submitting answers...' : submitted ? 'Exam submitted' : 'Submit exam'}
       </Button>
     </div>
   )
