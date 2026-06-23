@@ -2,10 +2,11 @@ export type AuthUser = {
   id: string
   email: string
   name: string
+  full_name?: string
 }
 
 export type LoginRequest = {
-  email: string
+  credential: string
   password: string
 }
 

@@ -13,14 +13,14 @@ import (
 	"sync/atomic"
 )
 
-type fakeGitLabServer struct {
+type fakeGiteaServer struct {
 	server    *httptest.Server
 	accessOK  atomic.Bool
 	repoFiles map[string]string
 }
 
-func newFakeGitLabServer() *fakeGitLabServer {
-	f := &fakeGitLabServer{repoFiles: map[string]string{
+func newFakeGiteaServer() *fakeGiteaServer {
+	f := &fakeGiteaServer{repoFiles: map[string]string{
 		"go.mod":                           "module fakeapp\n\ngo 1.24\n",
 		"cmd/server/main.go":               "package main\n\nimport (\n  \"log\"\n  \"net/http\"\n  \"fakeapp/internal/server\"\n)\n\nfunc main() { router := server.NewRouter(); log.Fatal(http.ListenAndServe(\":8080\", router)) }\n",
 		"internal/server/router.go":        "package server\n\nimport (\n  \"net/http\"\n  \"fakeapp/internal/handler\"\n  \"fakeapp/internal/service\"\n)\n\nfunc NewRouter() http.Handler { mux := http.NewServeMux(); userHandler := handler.NewUserHandler(service.NewUserService()); mux.HandleFunc(\"/users\", userHandler.CreateUser); return mux }\n",
@@ -32,12 +32,12 @@ func newFakeGitLabServer() *fakeGitLabServer {
 	return f
 }
 
-func (f *fakeGitLabServer) URL() string       { return f.server.URL }
-func (f *fakeGitLabServer) Close()            { f.server.Close() }
-func (f *fakeGitLabServer) SetAccess(ok bool) { f.accessOK.Store(ok) }
-func (f *fakeGitLabServer) RepoURL() string   { return f.server.URL + "/group/project" }
+func (f *fakeGiteaServer) URL() string       { return f.server.URL }
+func (f *fakeGiteaServer) Close()            { f.server.Close() }
+func (f *fakeGiteaServer) SetAccess(ok bool) { f.accessOK.Store(ok) }
+func (f *fakeGiteaServer) RepoURL() string   { return f.server.URL + "/group/project" }
 
-func (f *fakeGitLabServer) handle(w http.ResponseWriter, r *http.Request) {
+func (f *fakeGiteaServer) handle(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(r.Header.Get("PRIVATE-TOKEN")) == "" {
 		http.Error(w, "missing bot token", http.StatusUnauthorized)
 		return
@@ -55,7 +55,7 @@ func (f *fakeGitLabServer) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	rest := strings.TrimPrefix(p, "/projects/")
 
-	suffix, ok := fakeGitLabProjectSuffix(rest, "group/project")
+	suffix, ok := fakeGiteaProjectSuffix(rest, "group/project")
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -87,7 +87,7 @@ func (f *fakeGitLabServer) handle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func fakeGitLabProjectSuffix(rest string, projectPath string) (string, bool) {
+func fakeGiteaProjectSuffix(rest string, projectPath string) (string, bool) {
 	encodedProjectPath := url.PathEscape(projectPath)
 	switch {
 	case rest == projectPath, rest == encodedProjectPath:

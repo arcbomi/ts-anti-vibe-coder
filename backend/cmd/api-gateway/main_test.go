@@ -23,7 +23,7 @@ func TestGatewayRoutesBrowserEndpointsToExpectedServices(t *testing.T) {
 		newFixedHandler("auth ok"),
 		newRecordingHandler(t, func(r *http.Request) string {
 			requireTrustedUserID(t, r)
-			return "gitlab ok"
+			return "gitea ok"
 		}),
 		newRecordingHandler(t, func(r *http.Request) string {
 			requireTrustedUserID(t, r)
@@ -43,8 +43,8 @@ func TestGatewayRoutesBrowserEndpointsToExpectedServices(t *testing.T) {
 		want   string
 	}{
 		{name: "auth login", method: http.MethodGet, path: "/auth/login", want: "auth ok"},
-		{name: "repository create", method: http.MethodPost, path: "/repositories", want: "gitlab ok"},
-		{name: "analysis job status", method: http.MethodGet, path: "/analysis-jobs/123", want: "gitlab ok"},
+		{name: "repository create", method: http.MethodPost, path: "/repositories", want: "gitea ok"},
+		{name: "analysis job status", method: http.MethodGet, path: "/analysis-jobs/123", want: "gitea ok"},
 		{name: "analysis job questions", method: http.MethodGet, path: "/analysis-jobs/123/questions", want: "question ok"},
 		{name: "exam questions", method: http.MethodGet, path: "/exams/123/questions", want: "question ok"},
 		{name: "exam submit", method: http.MethodPost, path: "/exams/123/submit", want: "exam ok"},
@@ -76,7 +76,7 @@ func TestGatewayReturnsNotFoundForUnknownRoute(t *testing.T) {
 		logger.New("api-gateway-test"),
 		validator,
 		newFixedHandler("auth ok"),
-		newFixedHandler("gitlab ok"),
+		newFixedHandler("gitea ok"),
 		newFixedHandler("question ok"),
 		newFixedHandler("exam ok"),
 	)
@@ -96,7 +96,7 @@ func TestGatewayRejectsProtectedRoutesWithoutToken(t *testing.T) {
 		logger.New("api-gateway-test"),
 		validator,
 		newFixedHandler("auth ok"),
-		newFixedHandler("gitlab ok"),
+		newFixedHandler("gitea ok"),
 		newFixedHandler("question ok"),
 		newFixedHandler("exam ok"),
 	)
@@ -122,7 +122,7 @@ func TestGatewayRejectsExpiredToken(t *testing.T) {
 		logger.New("api-gateway-test"),
 		expiredValidator,
 		newFixedHandler("auth ok"),
-		newFixedHandler("gitlab ok"),
+		newFixedHandler("gitea ok"),
 		newFixedHandler("question ok"),
 		newFixedHandler("exam ok"),
 	)
@@ -225,7 +225,7 @@ func issueToken(t *testing.T) string {
 func TestMain(m *testing.M) {
 	code := m.Run()
 	_ = os.Unsetenv("AUTH_SERVICE_BASE_URL")
-	_ = os.Unsetenv("GITLAB_READER_SERVICE_BASE_URL")
+	_ = os.Unsetenv("GITEA_READER_SERVICE_BASE_URL")
 	_ = os.Unsetenv("QUESTION_SERVICE_BASE_URL")
 	_ = os.Unsetenv("EXAM_SERVICE_BASE_URL")
 	os.Exit(code)

@@ -155,7 +155,7 @@ func TestExamIntegrationRejectsCrossUserAccess(t *testing.T) {
 
 func seedRepositoryAndQuestions(t *testing.T, app *testApp, userID, repositoryID, analysisJobID string) {
 	t.Helper()
-	_, err := app.db.ExecContext(context.Background(), `INSERT INTO repositories (id, user_id, gitlab_repo_url, gitlab_project_path, default_branch, bot_access_status) VALUES ($1,$2,$3,$4,'main','granted')`, repositoryID, userID, app.gitlab.RepoURL(), "group/project")
+	_, err := app.db.ExecContext(context.Background(), `INSERT INTO repositories (id, user_id, gitea_repo_url, gitea_project_path, default_branch, bot_access_status) VALUES ($1,$2,$3,$4,'main','granted')`, repositoryID, userID, app.gitea.RepoURL(), "group/project")
 	if err != nil {
 		t.Fatalf("seed repository: %v", err)
 	}
@@ -164,7 +164,7 @@ func seedRepositoryAndQuestions(t *testing.T, app *testApp, userID, repositoryID
 		t.Fatalf("seed analysis job: %v", err)
 	}
 	for i := 0; i < 20; i++ {
-		_, err = app.db.ExecContext(context.Background(), `INSERT INTO questions (id, analysis_job_id, question, option_a, option_b, option_c, option_d, correct_option, explanation, difficulty, source_file_path) VALUES ($1,$2,$3,$4,$5,$6,$7,'B',$8,'medium','internal/server/router.go')`, uuid.NewString(), analysisJobID, fmt.Sprintf("Question %02d about how handlers call services?", i+1), "The database registers routes.", "Handlers call services after request parsing.", "The frontend grades answers.", "GitLab creates users automatically.", "The route and handler code show this flow.")
+		_, err = app.db.ExecContext(context.Background(), `INSERT INTO questions (id, analysis_job_id, question, option_a, option_b, option_c, option_d, correct_option, explanation, difficulty, source_file_path) VALUES ($1,$2,$3,$4,$5,$6,$7,'B',$8,'medium','internal/server/router.go')`, uuid.NewString(), analysisJobID, fmt.Sprintf("Question %02d about how handlers call services?", i+1), "The database registers routes.", "Handlers call services after request parsing.", "The frontend grades answers.", "Gitea creates users automatically.", "The route and handler code show this flow.")
 		if err != nil {
 			t.Fatalf("seed question %d: %v", i+1, err)
 		}

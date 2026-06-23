@@ -353,6 +353,36 @@ input:focus-visible,
   flex: 1 1 14rem;
 }
 
+.repo-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.repo-card,
+.repo-summary-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.repo-card {
+  flex-direction: column;
+}
+
+.repo-card--selected {
+  border-color: rgba(15, 118, 110, 0.45);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.repo-card--compact {
+  padding: 0.9rem 1rem;
+}
+
 .status-bar {
   display: flex;
   flex-wrap: wrap;

@@ -10,14 +10,19 @@ func TestLoadReadsSharedEnvironment(t *testing.T) {
 	t.Setenv("REDIS_ADDR", "redis:6379")
 	t.Setenv("REDIS_PASSWORD", "secret")
 	t.Setenv("REDIS_DB", "2")
-	t.Setenv("GITLAB_BASE_URL", "https://gitlab.example.com")
-	t.Setenv("GITLAB_BOT_TOKEN", "gitlab-token")
-	t.Setenv("GITLAB_BOT_USERNAME", "bot")
+	t.Setenv("GITEA_BASE_URL", "https://gitea.example.com")
+	t.Setenv("GITEA_BOT_TOKEN", "gitea-token")
+	t.Setenv("GITEA_BOT_USERNAME", "bot")
 	t.Setenv("AI_BASE_URL", "https://ai.example.com")
 	t.Setenv("AI_API_KEY", "ai-key")
 	t.Setenv("AI_MODEL", "model")
 	t.Setenv("INTERNAL_SERVICE_TOKEN", "internal-token")
 	t.Setenv("JWT_SECRET", "jwt-secret")
+	t.Setenv("TOMORROW_SCHOOL_AUTH_ENDPOINT", "https://tomorrow.example.com/api/auth/signin")
+	t.Setenv("TOMORROW_SCHOOL_AUTH_TIMEOUT_SECONDS", "7")
+	t.Setenv("TOMORROW_SCHOOL_AUTH_REFERRER", "https://tomorrow.example.com/login")
+	t.Setenv("TOMORROW_SCHOOL_AUTH_X_JWT_TOKEN", "undefined")
+	t.Setenv("TOMORROW_SCHOOL_AUTH_SESSION_ID", "session-123")
 
 	cfg := Load()
 
@@ -36,8 +41,8 @@ func TestLoadReadsSharedEnvironment(t *testing.T) {
 	if cfg.RedisAddr != "redis:6379" || cfg.RedisPassword != "secret" || cfg.RedisDB != 2 {
 		t.Fatalf("redis config not loaded: %#v", cfg)
 	}
-	if cfg.GitLabBaseURL != "https://gitlab.example.com" || cfg.GitLabBotToken != "gitlab-token" || cfg.GitLabBotUsername != "bot" {
-		t.Fatalf("gitlab config not loaded: %#v", cfg)
+	if cfg.GiteaBaseURL != "https://gitea.example.com" || cfg.GiteaBotToken != "gitea-token" || cfg.GiteaBotUsername != "bot" {
+		t.Fatalf("gitea config not loaded: %#v", cfg)
 	}
 	if cfg.AIBaseURL != "https://ai.example.com" || cfg.AIAPIKey != "ai-key" || cfg.AIModel != "model" {
 		t.Fatalf("ai config not loaded: %#v", cfg)
@@ -50,6 +55,13 @@ func TestLoadReadsSharedEnvironment(t *testing.T) {
 	}
 	if cfg.JWTAccessTokenTTLMinutes != 60 || cfg.JWTRefreshTokenTTLDays != 30 {
 		t.Fatalf("jwt ttl defaults not loaded: %#v", cfg)
+	}
+	if cfg.TomorrowSchoolAuthEndpoint != "https://tomorrow.example.com/api/auth/signin" ||
+		cfg.TomorrowSchoolAuthTimeoutSecs != 7 ||
+		cfg.TomorrowSchoolAuthReferrer != "https://tomorrow.example.com/login" ||
+		cfg.TomorrowSchoolAuthXJWTToken != "undefined" ||
+		cfg.TomorrowSchoolAuthSessionID != "session-123" {
+		t.Fatalf("tomorrow school auth config not loaded: %#v", cfg)
 	}
 }
 

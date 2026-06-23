@@ -12,27 +12,28 @@ type LoginFormProps = {
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const { error, isLoading, login } = useAuth()
-  const [email, setEmail] = useState('')
+  const [credential, setCredential] = useState('')
   const [password, setPassword] = useState('')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    await login({ email, password })
+    await login({ credential, password })
     onSuccess?.()
   }
 
   return (
     <form onSubmit={handleSubmit}>
       <div className="field">
-        <label htmlFor="auth-email">Email</label>
+        <label htmlFor="auth-credential">Email or username</label>
         <input
-          id="auth-email"
-          name="email"
-          type="email"
-          value={email}
-          autoComplete="email"
+          id="auth-credential"
+          name="credential"
+          type="text"
+          value={credential}
+          autoComplete="username"
+          placeholder="student@example.com or student-user"
           required
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => setCredential(event.target.value)}
         />
       </div>
 

@@ -1,10 +1,10 @@
 # Repository Domain
 
-This domain handles GitLab repository connection.
+This domain handles Gitea repository connection.
 
-The user does not provide a GitLab personal token.
+The user does not provide a Gitea personal token.
 
-The user adds the platform GitLab server userbot as a collaborator to their repository.
+The user adds the platform Gitea server userbot as a collaborator to their repository.
 
 After that, the user clicks "I already added the bot."
 

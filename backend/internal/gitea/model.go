@@ -1,4 +1,4 @@
-package gitlab
+package gitea
 
 import (
 	"errors"
@@ -19,7 +19,7 @@ const (
 	ErrCodeInvalidRepositoryURL = "INVALID_REPOSITORY_URL"
 	ErrCodeRepositoryNotFound   = "REPOSITORY_NOT_FOUND"
 	ErrCodeBotAccessDenied      = "BOT_ACCESS_DENIED"
-	ErrCodeGitLabAPIError       = "GITLAB_API_ERROR"
+	ErrCodeGiteaAPIError        = "GITEA_API_ERROR"
 	ErrCodeQueuePublishFailed   = "QUEUE_PUBLISH_FAILED"
 	ErrCodeUnauthorized         = "UNAUTHORIZED"
 	ErrCodeInternal             = "INTERNAL_ERROR"
@@ -28,15 +28,17 @@ const (
 var ErrNotFound = errors.New("repository not found")
 
 type Repository struct {
-	ID                  string    `json:"id"`
-	UserID              string    `json:"user_id,omitempty"`
-	GitLabRepoURL       string    `json:"gitlab_repo_url"`
-	GitLabProjectPath   string    `json:"gitlab_project_path,omitempty"`
-	DefaultBranch       string    `json:"default_branch,omitempty"`
-	BotAccessStatus     string    `json:"bot_access_status"`
-	LatestAnalysisJobID *string   `json:"latest_analysis_job_id,omitempty"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at,omitempty"`
+	ID                         string    `json:"id"`
+	UserID                     string    `json:"user_id,omitempty"`
+	GiteaRepoURL               string    `json:"gitea_repo_url"`
+	GiteaProjectPath           string    `json:"gitea_project_path,omitempty"`
+	DefaultBranch              string    `json:"default_branch,omitempty"`
+	BotAccessStatus            string    `json:"bot_access_status"`
+	LatestAnalysisJobID        *string   `json:"latest_analysis_job_id,omitempty"`
+	LatestAnalysisStatus       *string   `json:"latest_analysis_status,omitempty"`
+	LatestAnalysisErrorMessage *string   `json:"latest_analysis_error_message,omitempty"`
+	CreatedAt                  time.Time `json:"created_at"`
+	UpdatedAt                  time.Time `json:"updated_at,omitempty"`
 }
 
 type AnalysisJob struct {

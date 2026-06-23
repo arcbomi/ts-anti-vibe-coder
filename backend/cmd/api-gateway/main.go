@@ -61,13 +61,13 @@ func main() {
 
 func newRouter(log *slog.Logger, validator *authn.Validator) http.Handler {
 	authProxy := mustNewReverseProxy(serviceBaseURL("AUTH_SERVICE_BASE_URL", "http://localhost:8081"))
-	gitlabProxy := mustNewReverseProxy(serviceBaseURL("GITLAB_READER_SERVICE_BASE_URL", "http://localhost:8082"))
+	giteaProxy := mustNewReverseProxy(serviceBaseURL("GITEA_READER_SERVICE_BASE_URL", "http://localhost:8082"))
 	questionProxy := mustNewReverseProxy(serviceBaseURL("QUESTION_SERVICE_BASE_URL", "http://localhost:8084"))
 	examProxy := mustNewReverseProxy(serviceBaseURL("EXAM_SERVICE_BASE_URL", "http://localhost:8085"))
-	return newRouterWithHandlers(log, validator, authProxy, gitlabProxy, questionProxy, examProxy)
+	return newRouterWithHandlers(log, validator, authProxy, giteaProxy, questionProxy, examProxy)
 }
 
-func newRouterWithHandlers(log *slog.Logger, validator *authn.Validator, authProxy, gitlabProxy, questionProxy, examProxy http.Handler) http.Handler {
+func newRouterWithHandlers(log *slog.Logger, validator *authn.Validator, authProxy, giteaProxy, questionProxy, examProxy http.Handler) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID())
 	r.Use(middleware.RequestLogger(log))
@@ -82,10 +82,10 @@ func newRouterWithHandlers(log *slog.Logger, validator *authn.Validator, authPro
 	r.Handle("/auth", authProxy)
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireJWTIdentity(validator))
-		r.Handle("/repositories/*", gitlabProxy)
-		r.Handle("/repositories", gitlabProxy)
+		r.Handle("/repositories/*", giteaProxy)
+		r.Handle("/repositories", giteaProxy)
 		r.Handle("/analysis-jobs/{id}/questions", questionProxy)
-		r.Handle("/analysis-jobs/{id}", gitlabProxy)
+		r.Handle("/analysis-jobs/{id}", giteaProxy)
 		r.Handle("/exams/{id}/questions", questionProxy)
 		r.Handle("/exams/*", examProxy)
 		r.Handle("/exams", examProxy)

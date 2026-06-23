@@ -3,12 +3,12 @@ package analysis
 import "encoding/json"
 
 // RepositoryInput is the platform-side input used to analyze a user-submitted
-// GitLab repository. It represents repository data that has already been read
+// Gitea repository. It represents repository data that has already been read
 // safely by the platform bot; this service never mutates the user repository.
 type RepositoryInput struct {
 	UserID         string           `json:"user_id"`
 	RepositoryID   string           `json:"repository_id"`
-	GitLabRepoURL  string           `json:"gitlab_repository_url"`
+	GiteaRepoURL   string           `json:"gitea_repository_url"`
 	Branch         string           `json:"branch_name"`
 	RepositoryTree []string         `json:"repository_file_tree"`
 	Files          []RepositoryFile `json:"selected_source_files"`
@@ -23,7 +23,7 @@ type RepositoryFile struct {
 type CodeIndex struct {
 	UserID         string        `json:"user_id"`
 	RepositoryID   string        `json:"repository_id"`
-	GitLabRepoURL  string        `json:"gitlab_repository_url"`
+	GiteaRepoURL   string        `json:"gitea_repository_url"`
 	Branch         string        `json:"branch_name"`
 	RepositoryTree []string      `json:"repository_file_tree"`
 	SelectedFiles  []FileSummary `json:"selected_source_files"`

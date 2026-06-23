@@ -1,4 +1,4 @@
-package gitlab
+package gitea
 
 import (
 	"context"
@@ -7,17 +7,17 @@ import (
 	"net/http"
 	"time"
 
-	"backend/pkg/sdk/gitlabclient"
+	"backend/pkg/sdk/giteaclient"
 	"backend/pkg/sdk/logger"
 	"backend/pkg/sdk/queue"
 
 	"github.com/google/uuid"
 )
 
-type GitLabClient interface {
+type GiteaClient interface {
 	CheckAccess(ctx context.Context, repoURL string) (bool, error)
-	GetRepository(ctx context.Context, repoURL string) (gitlabclient.Repository, error)
-	GetRepositoryTree(ctx context.Context, repoURL string, branch string) ([]gitlabclient.TreeNode, error)
+	GetRepository(ctx context.Context, repoURL string) (giteaclient.Repository, error)
+	GetRepositoryTree(ctx context.Context, repoURL string, branch string) ([]giteaclient.TreeNode, error)
 	GetFileContent(ctx context.Context, repoURL string, filePath string, branch string) ([]byte, error)
 }
 
@@ -27,6 +27,7 @@ type QueuePublisher interface {
 
 type Service interface {
 	CreateRepository(ctx context.Context, userID string, repoURL string) (*Repository, error)
+	ListRepositories(ctx context.Context, userID string) ([]Repository, error)
 	CheckBotAccess(ctx context.Context, userID string, repositoryID string) (*Repository, error)
 	StartAnalysis(ctx context.Context, userID string, repositoryID string) (*AnalysisJob, error)
 	GetRepository(ctx context.Context, userID string, repositoryID string) (*Repository, error)
@@ -37,18 +38,18 @@ type Service interface {
 type ReaderService struct {
 	store     Store
 	validator *Validator
-	gitlab    GitLabClient
+	gitea     GiteaClient
 	queue     QueuePublisher
 	filter    FileFilter
 	log       *slog.Logger
 	timeout   time.Duration
 }
 
-func NewService(store Store, validator *Validator, gl GitLabClient, publisher QueuePublisher, filter FileFilter, log *slog.Logger) *ReaderService {
+func NewService(store Store, validator *Validator, gl GiteaClient, publisher QueuePublisher, filter FileFilter, log *slog.Logger) *ReaderService {
 	if log == nil {
-		log = logger.New("gitlab-reader-service")
+		log = logger.New("gitea-reader-service")
 	}
-	return &ReaderService{store: store, validator: validator, gitlab: gl, queue: publisher, filter: filter, log: log, timeout: 15 * time.Second}
+	return &ReaderService{store: store, validator: validator, gitea: gl, queue: publisher, filter: filter, log: log, timeout: 15 * time.Second}
 }
 
 func (s *ReaderService) CreateRepository(ctx context.Context, userID string, repoURL string) (*Repository, error) {
@@ -60,17 +61,28 @@ func (s *ReaderService) CreateRepository(ctx context.Context, userID string, rep
 		return nil, appError(ErrCodeInvalidRepositoryURL, "The repository URL is invalid.", http.StatusBadRequest, err)
 	}
 	repo := &Repository{
-		ID:                uuid.NewString(),
-		UserID:            userID,
-		GitLabRepoURL:     normalized.URL,
-		GitLabProjectPath: normalized.ProjectPath,
-		DefaultBranch:     "main",
-		BotAccessStatus:   BotAccessUnknown,
+		ID:               uuid.NewString(),
+		UserID:           userID,
+		GiteaRepoURL:     normalized.URL,
+		GiteaProjectPath: normalized.ProjectPath,
+		DefaultBranch:    "main",
+		BotAccessStatus:  BotAccessUnknown,
 	}
 	if err := s.store.CreateRepository(ctx, repo); err != nil {
 		return nil, appError(ErrCodeInternal, "Unable to save repository.", http.StatusInternalServerError, err)
 	}
 	return repo, nil
+}
+
+func (s *ReaderService) ListRepositories(ctx context.Context, userID string) ([]Repository, error) {
+	if err := validateUserID(userID); err != nil {
+		return nil, err
+	}
+	repositories, err := s.store.ListRepositories(ctx, userID)
+	if err != nil {
+		return nil, appError(ErrCodeInternal, "Internal server error.", http.StatusInternalServerError, err)
+	}
+	return repositories, nil
 }
 
 func (s *ReaderService) CheckBotAccess(ctx context.Context, userID string, repositoryID string) (*Repository, error) {
@@ -85,21 +97,21 @@ func (s *ReaderService) CheckBotAccess(ctx context.Context, userID string, repos
 
 	apiCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
-	access, err := s.gitlab.CheckAccess(apiCtx, repo.GitLabRepoURL)
+	access, err := s.gitea.CheckAccess(apiCtx, repo.GiteaRepoURL)
 	if err != nil {
 		_, _ = s.store.UpdateBotAccess(ctx, userID, repositoryID, BotAccessFailed, repo.DefaultBranch)
-		s.log.Error("gitlab access check failed", "repository_id", repositoryID, "request_id", logger.RequestIDFromContext(ctx), "err", err)
-		return nil, appError(ErrCodeGitLabAPIError, "Unable to check GitLab repository access.", http.StatusBadGateway, err)
+		s.log.Error("gitea access check failed", "repository_id", repositoryID, "request_id", logger.RequestIDFromContext(ctx), "err", err)
+		return nil, appError(ErrCodeGiteaAPIError, "Unable to check Gitea repository access.", http.StatusBadGateway, err)
 	}
 	if !access {
 		_, _ = s.store.UpdateBotAccess(ctx, userID, repositoryID, BotAccessDenied, repo.DefaultBranch)
-		return nil, appError(ErrCodeBotAccessDenied, "The GitLab bot does not have access to this repository. Please add the bot as a collaborator and try again.", http.StatusForbidden, nil)
+		return nil, appError(ErrCodeBotAccessDenied, "The Gitea bot does not have access to this repository. Please add the bot as a collaborator and try again.", http.StatusForbidden, nil)
 	}
 
-	meta, err := s.gitlab.GetRepository(apiCtx, repo.GitLabRepoURL)
+	meta, err := s.gitea.GetRepository(apiCtx, repo.GiteaRepoURL)
 	if err != nil {
 		_, _ = s.store.UpdateBotAccess(ctx, userID, repositoryID, BotAccessFailed, repo.DefaultBranch)
-		return nil, appError(ErrCodeGitLabAPIError, "Unable to read GitLab repository metadata.", http.StatusBadGateway, err)
+		return nil, appError(ErrCodeGiteaAPIError, "Unable to read Gitea repository metadata.", http.StatusBadGateway, err)
 	}
 	branch := meta.DefaultBranch
 	if branch == "" {
@@ -121,14 +133,14 @@ func (s *ReaderService) StartAnalysis(ctx context.Context, userID string, reposi
 		return nil, err
 	}
 	if repo.BotAccessStatus != BotAccessGranted {
-		return nil, appError(ErrCodeBotAccessDenied, "The GitLab bot does not have access to this repository. Please add the bot as a collaborator and try again.", http.StatusForbidden, nil)
+		return nil, appError(ErrCodeBotAccessDenied, "The Gitea bot does not have access to this repository. Please add the bot as a collaborator and try again.", http.StatusForbidden, nil)
 	}
 
 	job := &AnalysisJob{ID: uuid.NewString(), UserID: userID, RepositoryID: repositoryID, Status: AnalysisJobPending}
 	if err := s.store.CreateAnalysisJob(ctx, job); err != nil {
 		return nil, appError(ErrCodeInternal, "Unable to create analysis job.", http.StatusInternalServerError, err)
 	}
-	msg := queue.AnalysisJobMessage{JobID: job.ID, UserID: userID, RepositoryID: repositoryID, GitLabRepoURL: repo.GitLabRepoURL, Branch: repo.DefaultBranch}
+	msg := queue.AnalysisJobMessage{JobID: job.ID, UserID: userID, RepositoryID: repositoryID, GiteaRepoURL: repo.GiteaRepoURL, Branch: repo.DefaultBranch}
 	if msg.Branch == "" {
 		msg.Branch = "main"
 	}
@@ -179,7 +191,7 @@ func (s *ReaderService) ReadSafeRepositoryFiles(ctx context.Context, userID stri
 		return nil, err
 	}
 	if repo.BotAccessStatus != BotAccessGranted {
-		return nil, appError(ErrCodeBotAccessDenied, "The GitLab bot does not have access to this repository. Please add the bot as a collaborator and try again.", http.StatusForbidden, nil)
+		return nil, appError(ErrCodeBotAccessDenied, "The Gitea bot does not have access to this repository. Please add the bot as a collaborator and try again.", http.StatusForbidden, nil)
 	}
 	branch := repo.DefaultBranch
 	if branch == "" {
@@ -188,9 +200,9 @@ func (s *ReaderService) ReadSafeRepositoryFiles(ctx context.Context, userID stri
 
 	apiCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
-	tree, err := s.gitlab.GetRepositoryTree(apiCtx, repo.GitLabRepoURL, branch)
+	tree, err := s.gitea.GetRepositoryTree(apiCtx, repo.GiteaRepoURL, branch)
 	if err != nil {
-		return nil, appError(ErrCodeGitLabAPIError, "Unable to read GitLab repository tree.", http.StatusBadGateway, err)
+		return nil, appError(ErrCodeGiteaAPIError, "Unable to read Gitea repository tree.", http.StatusBadGateway, err)
 	}
 
 	snapshot := &SafeRepositorySnapshot{RepositoryID: repositoryID, Branch: branch}
@@ -198,7 +210,7 @@ func (s *ReaderService) ReadSafeRepositoryFiles(ctx context.Context, userID stri
 		if node.Type != "blob" || !s.filter.ShouldReadPath(node.Path) {
 			continue
 		}
-		content, err := s.gitlab.GetFileContent(apiCtx, repo.GitLabRepoURL, node.Path, branch)
+		content, err := s.gitea.GetFileContent(apiCtx, repo.GiteaRepoURL, node.Path, branch)
 		if err != nil || !s.filter.ShouldReadContent(content) {
 			continue
 		}

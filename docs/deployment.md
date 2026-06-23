@@ -6,7 +6,7 @@ The platform requires these backend services:
 
 - API Gateway
 - Auth Service
-- GitLab Reader Service
+- Gitea Reader Service
 - AI Analysis Service
 - Question Service
 - Exam Service
@@ -17,7 +17,7 @@ It also requires:
 - React frontend application.
 - Database.
 - Queue.
-- GitLab server userbot account.
+- Gitea server userbot account.
 - AI API access.
 
 ## Environment Variables
@@ -29,9 +29,9 @@ APP_ENV=production
 API_GATEWAY_PORT=8080
 DATABASE_URL=postgres://user:password@host:5432/app
 QUEUE_URL=redis://host:6379/0
-GITLAB_BASE_URL=https://gitlab.com
-GITLAB_BOT_USERNAME=platform-userbot
-GITLAB_BOT_TOKEN=server-bot-token
+GITEA_BASE_URL=https://gitea.com
+GITEA_BOT_USERNAME=platform-userbot
+GITEA_BOT_TOKEN=server-bot-token
 AI_API_KEY=ai-provider-key
 JWT_SECRET=change-me
 FRONTEND_ORIGIN=https://app.example.com
@@ -50,7 +50,7 @@ Example local commands:
 cd backend
 go run ./cmd/api-gateway
 go run ./cmd/auth-service
-go run ./cmd/gitlab-reader-service
+go run ./cmd/gitea-reader-service
 go run ./cmd/ai-analysis-service
 go run ./cmd/question-service
 go run ./cmd/exam-service
@@ -67,7 +67,7 @@ cd backend
 go run ./cmd/worker-service
 ```
 
-The worker must have access to the database, queue, GitLab bot credentials, and AI API key.
+The worker must have access to the database, queue, Gitea bot credentials, and AI API key.
 
 ## Running Frontend
 
@@ -115,16 +115,16 @@ A database is required to store:
 
 PostgreSQL is recommended for the MVP.
 
-## GitLab Bot Account Requirement
+## Gitea Bot Account Requirement
 
-The platform needs a GitLab server userbot account. Users must add this bot account as a collaborator to repositories they want analyzed.
+The platform needs a Gitea server userbot account. Users must add this bot account as a collaborator to repositories they want analyzed.
 
 The backend uses the bot account credentials to:
 
 - Check whether the bot can access a repository.
 - Read repository code after access is confirmed.
 
-The platform must not ask users for personal GitLab tokens.
+The platform must not ask users for personal Gitea tokens.
 
 ## AI API Key Requirement
 

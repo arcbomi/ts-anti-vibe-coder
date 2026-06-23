@@ -1,14 +1,14 @@
 # Auth Service
 
-This service handles authentication for the GitLab Codebase Understanding Exam Platform.
+This service handles authentication for the Gitea Codebase Understanding Exam Platform.
 
 ## Current features
 
 - User registration
-- User login
+- User login through Tomorrow School signin
 - User logout
 - Current user session
-- Password hashing with bcrypt
+- Internal JWT issuance after successful external authentication
 - Short-lived JWT access tokens
 - Auth middleware for protected routes
 
@@ -29,13 +29,15 @@ Required:
 - `DATABASE_URL=postgres://...`
 - `JWT_SECRET=...`
 - `JWT_ACCESS_TOKEN_TTL_MINUTES=60`
+- `TOMORROW_SCHOOL_AUTH_ENDPOINT=https://01.tomorrow-school.ai/api/auth/signin`
 
-Optional future SSO configuration:
+Optional Tomorrow School signin configuration:
 
+- `TOMORROW_SCHOOL_AUTH_TIMEOUT_SECONDS=10`
+- `TOMORROW_SCHOOL_AUTH_REFERRER=https://01.tomorrow-school.ai/?show-password=1`
+- `TOMORROW_SCHOOL_AUTH_X_JWT_TOKEN=undefined`
+- `TOMORROW_SCHOOL_AUTH_SESSION_ID=`
 - `JWT_REFRESH_TOKEN_TTL_DAYS=30`
-- `TOMORROW_SCHOOL_SSO_CLIENT_ID=`
-- `TOMORROW_SCHOOL_SSO_CLIENT_SECRET=`
-- `TOMORROW_SCHOOL_SSO_REDIRECT_URL=`
 
 Development-only local seed user:
 
@@ -43,24 +45,20 @@ Development-only local seed user:
 - `DEV_SEED_USER_EMAIL=student@example.com`
 - `DEV_SEED_USER_PASSWORD=correct-password`
 
-## Future plan
+## Authentication flow
 
-In the future, this auth service should support Tomorrow School own account system or Tomorrow School SSO, including:
+`POST /auth/login` now forwards an email-or-username credential plus password to Tomorrow School's signin endpoint using HTTP Basic authentication. A successful Tomorrow School JWT is treated only as proof of login. This service still issues its own JWT for internal services, and downstream services continue validating only locally issued JWTs.
 
-- Support Tomorrow School own account login
-- Support Tomorrow School internal SSO
-- Support student identity verification
-
-The current code keeps authentication concerns isolated so Tomorrow School identity providers can be added without mixing in repository reading, question generation, or exam grading logic.
+Tomorrow School JWTs are not locally validated because their signing secret/public key is not available to this service.
 
 ## This service should not handle
 
-- GitLab repository reading
+- Gitea repository reading
 - AI analysis
 - Question generation
 - Exam grading
 
-The user does not need to provide a GitLab personal token. Repository access is handled by the GitLab server userbot flow in another service.
+The user does not need to provide a Gitea personal token. Repository access is handled by the Gitea server userbot flow in another service.
 
 ## Integration notes
 
@@ -69,5 +67,6 @@ Other services and the API Gateway can depend on this service to identify the cu
 - `user_id`
 - `email`
 - `name`
+- `full_name`
 
-It never exposes password hashes or private token data. The authenticated user ID will be used by the GitLab Reader Service, AI Analysis Service, Question Service, and Exam Service.
+It never exposes password hashes or private token data. The authenticated user ID will be used by the Gitea Reader Service, AI Analysis Service, Question Service, and Exam Service.

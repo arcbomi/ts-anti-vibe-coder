@@ -33,7 +33,7 @@ func TestRepositoryIntegrationBotAccessDenied(t *testing.T) {
 	app := newTestApp(t)
 	userID, token := createIntegrationUser(t, app.db, "denied-owner@example.com")
 	repositoryID := createRepositoryViaAPI(t, app, userID, token)
-	app.gitlab.SetAccess(false)
+	app.gitea.SetAccess(false)
 
 	checkReq := httptest.NewRequest(http.MethodPost, "/repositories/"+repositoryID+"/check-bot-access", nil)
 	checkReq.Header.Set("Authorization", "Bearer "+token)
@@ -51,7 +51,7 @@ func TestRepositoryIntegrationBotAccessDenied(t *testing.T) {
 
 func createRepositoryViaAPI(t *testing.T, app *testApp, userID, token string) string {
 	t.Helper()
-	body, _ := json.Marshal(map[string]string{"gitlab_repo_url": app.gitlab.RepoURL()})
+	body, _ := json.Marshal(map[string]string{"gitea_repo_url": app.gitea.RepoURL()})
 	req := httptest.NewRequest(http.MethodPost, "/repositories", bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
@@ -65,10 +65,10 @@ func createRepositoryViaAPI(t *testing.T, app *testApp, userID, token string) st
 	var data struct {
 		RepositoryID    string `json:"repository_id"`
 		BotAccessStatus string `json:"bot_access_status"`
-		GitLabRepoURL   string `json:"gitlab_repo_url"`
+		GiteaRepoURL    string `json:"gitea_repo_url"`
 	}
 	_ = json.Unmarshal(env.Data, &data)
-	if data.RepositoryID == "" || data.BotAccessStatus != "unknown" || data.GitLabRepoURL != app.gitlab.RepoURL() {
+	if data.RepositoryID == "" || data.BotAccessStatus != "unknown" || data.GiteaRepoURL != app.gitea.RepoURL() {
 		t.Fatalf("unexpected repository create payload: %s", res.Body.String())
 	}
 	return data.RepositoryID

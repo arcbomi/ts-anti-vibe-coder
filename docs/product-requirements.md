@@ -2,7 +2,7 @@
 
 ## Product Goal
 
-The platform verifies whether a user truly understands a GitLab repository. It does this by automatically reading the repository through a server GitLab userbot, generating code-understanding exam questions with AI, and grading an offline Friday exam.
+The platform verifies whether a user truly understands a Gitea repository. It does this by automatically reading the repository through a server Gitea userbot, generating code-understanding exam questions with AI, and grading an offline Friday exam.
 
 A passing result means the user understands the repository code well enough to explain its structure, flow, and behavior.
 
@@ -16,9 +16,9 @@ A passing result means the user understands the repository code well enough to e
 ## Main User Flow
 
 1. User logs in to the platform.
-2. User enters a GitLab repository URL.
-3. Platform shows instructions to add the server GitLab userbot as a collaborator.
-4. User adds the bot in GitLab.
+2. User enters a Gitea repository URL.
+3. Platform shows instructions to add the server Gitea userbot as a collaborator.
+4. User adds the bot in Gitea.
 5. User clicks **"I already added the bot"**.
 6. Backend checks whether the bot can access the repository.
 7. Backend reads the repository automatically.
@@ -31,9 +31,9 @@ A passing result means the user understands the repository code well enough to e
 
 ## Repository Connection Flow
 
-- The user submits only the GitLab repository URL.
-- The platform displays the server GitLab userbot account that must be added as a collaborator.
-- The user adds the bot in GitLab using GitLab's collaborator or project member settings.
+- The user submits only the Gitea repository URL.
+- The platform displays the server Gitea userbot account that must be added as a collaborator.
+- The user adds the bot in Gitea using Gitea's collaborator or project member settings.
 - The user returns and clicks **"I already added the bot"**.
 - The backend verifies access using the server bot credentials.
 - The backend must not read repository code until access is confirmed.
@@ -67,8 +67,8 @@ If the user passes, the platform marks the user as understanding the repository.
 ## Important Product Rules
 
 1. User does not upload code manually.
-2. User does not provide personal GitLab token.
-3. User adds server GitLab userbot as collaborator.
+2. User does not provide personal Gitea token.
+3. User adds server Gitea userbot as collaborator.
 4. User must click **"I already added the bot"**.
 5. System checks bot access before reading repo.
 6. Questions are English only.

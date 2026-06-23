@@ -1,15 +1,15 @@
-# GitLab Codebase Understanding Exam Platform
+# Gitea Codebase Understanding Exam Platform
 
-The GitLab Codebase Understanding Exam Platform verifies whether a user truly understands a GitLab repository instead of only being able to produce code with AI assistance.
+The Gitea Codebase Understanding Exam Platform verifies whether a user truly understands a Gitea repository instead of only being able to produce code with AI assistance.
 
-The platform does not ask users to upload code manually and does not ask for a personal GitLab token. Instead, the user adds the platform's **server GitLab userbot** as a collaborator to their GitLab repository, then clicks **"I already added the bot"**. The backend checks bot access, reads the repository automatically, sends the codebase to AI analysis, and creates an offline exam.
+The platform does not ask users to upload code manually and does not ask for a personal Gitea token. Instead, the user adds the platform's **server Gitea userbot** as a collaborator to their Gitea repository, then clicks **"I already added the bot"**. The backend checks bot access, reads the repository automatically, sends the codebase to AI analysis, and creates an offline exam.
 
 ## Product Flow
 
 1. User logs in to the platform.
-2. User enters a GitLab repository URL.
-3. Platform instructs the user to add the GitLab server userbot as a repository collaborator.
-4. User adds the bot in GitLab.
+2. User enters a Gitea repository URL.
+3. Platform instructs the user to add the Gitea server userbot as a repository collaborator.
+4. User adds the bot in Gitea.
 5. User clicks **"I already added the bot"**.
 6. Backend checks whether the bot can access the repository.
 7. Backend automatically reads the repository after access is confirmed.
@@ -23,8 +23,8 @@ The platform does not ask users to upload code manually and does not ask for a p
 ## Important Product Rules
 
 - Users do not upload code manually.
-- Users do not provide a personal GitLab token.
-- Users add the platform's GitLab server userbot as a repository collaborator.
+- Users do not provide a personal Gitea token.
+- Users add the platform's Gitea server userbot as a repository collaborator.
 - Users must click **"I already added the bot"** before the backend checks access.
 - The system reads the repository automatically only after bot access is confirmed.
 - AI generates exactly **20 English-only A/B/C/D questions**.
@@ -42,14 +42,14 @@ backend/
   cmd/
     api-gateway/
     auth-service/
-    gitlab-reader-service/
+    gitea-reader-service/
     ai-analysis-service/
     question-service/
     exam-service/
     worker-service/
 ```
 
-All backend services must share common infrastructure through the centralized SDK under `backend/pkg/sdk`. Shared logic such as configuration, logging, database access, queues, middleware, HTTP clients, GitLab client code, and AI client code must live in the SDK instead of being duplicated inside services.
+All backend services must share common infrastructure through the centralized SDK under `backend/pkg/sdk`. Shared logic such as configuration, logging, database access, queues, middleware, HTTP clients, Gitea client code, and AI client code must live in the SDK instead of being duplicated inside services.
 
 The auth service should later support Tomorrow School account login or Tomorrow School SSO.
 
@@ -80,6 +80,7 @@ Each domain owns its own API functions, hooks, store, components, page sections,
 - [Backend architecture](docs/backend-architecture.md)
 - [Frontend architecture](docs/frontend-architecture.md)
 - [AI question rules](docs/ai-question-rules.md)
+- [Tomorrow School auth and GraphQL usage](docs/tomorrow-school-auth.md)
 - [Deployment](docs/deployment.md)
 
 ## Running the Whole Platform Locally
@@ -98,7 +99,7 @@ Create a local environment file from the checked-in example:
 cp .env.example .env
 ```
 
-The defaults are enough to boot the local stack. Replace `GITLAB_BOT_TOKEN`, `GITLAB_BOT_USERNAME`, `AI_API_KEY`, `AUTH_JWT_HS256_SECRET`, and `INTERNAL_SERVICE_TOKEN` before running a real GitLab/AI-backed workflow or deploying the platform.
+The defaults are enough to boot the local stack. Replace `GITEA_BOT_TOKEN`, `GITEA_BOT_USERNAME`, `AI_API_KEY`, `AUTH_JWT_HS256_SECRET`, and `INTERNAL_SERVICE_TOKEN` before running a real Gitea/AI-backed workflow or deploying the platform.
 
 ### One-command local development
 
@@ -114,7 +115,7 @@ This command calls `./scripts/dev-up.sh`, creates `.env` from `.env.example` whe
 | --- | --- |
 | API Gateway | <http://localhost:8080/healthz> |
 | Auth Service | <http://localhost:8081/healthz> |
-| GitLab Reader Service | <http://localhost:8082/healthz> |
+| Gitea Reader Service | <http://localhost:8082/healthz> |
 | AI Analysis Service | <http://localhost:8083/healthz> |
 | Question Service | <http://localhost:8084/healthz> |
 | Exam Service | <http://localhost:8085/healthz> |
@@ -144,7 +145,7 @@ When PostgreSQL and Redis are already running, you can run individual components
 ```bash
 make backend-run-api
 make backend-run-auth
-make backend-run-gitlab
+make backend-run-gitea
 make backend-run-analysis
 make backend-run-question
 make backend-run-exam

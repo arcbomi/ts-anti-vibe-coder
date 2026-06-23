@@ -9,11 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	internalgitlab "backend/internal/gitlab"
+	internalgitea "backend/internal/gitea"
 	"backend/pkg/sdk/authn"
 	"backend/pkg/sdk/config"
 	"backend/pkg/sdk/database"
-	"backend/pkg/sdk/gitlabclient"
+	"backend/pkg/sdk/giteaclient"
 	"backend/pkg/sdk/logger"
 	"backend/pkg/sdk/middleware"
 	"backend/pkg/sdk/queue"
@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.LoadFromEnv("gitlab-reader-service")
+	cfg, err := config.LoadFromEnv("gitea-reader-service")
 	if err != nil {
 		panic(err)
 	}
@@ -35,7 +35,7 @@ func main() {
 	}
 	defer db.Close()
 
-	store := internalgitlab.NewPostgresStore(db)
+	store := internalgitea.NewPostgresStore(db)
 	if err := store.EnsureSchema(context.Background()); err != nil {
 		log.Error("database schema initialization failed", "err", err)
 		os.Exit(1)
@@ -44,22 +44,22 @@ func main() {
 	redisClient := queue.NewRedisClient(queue.RedisConfig{Addr: cfg.RedisAddr, Password: cfg.RedisPassword, DB: cfg.RedisDB})
 	defer redisClient.Close()
 
-	gl := gitlabclient.New(cfg.GitLabBaseURL, cfg.GitLabBotToken)
-	filter := internalgitlab.NewFileFilter(maxFileSizeBytes())
+	gl := giteaclient.New(cfg.GiteaBaseURL, cfg.GiteaBotToken)
+	filter := internalgitea.NewFileFilter(maxFileSizeBytes())
 	validator, err := authn.NewValidator(cfg.JWTSecret)
 	if err != nil {
 		log.Error("jwt validator initialization failed", "err", err)
 		os.Exit(1)
 	}
-	service := internalgitlab.NewService(
+	service := internalgitea.NewService(
 		store,
-		internalgitlab.NewValidator(cfg.GitLabBaseURL),
+		internalgitea.NewValidator(cfg.GiteaBaseURL),
 		gl,
 		queue.NewProducerWithQueue(redisClient, cfg.AnalysisQueueName),
 		filter,
 		log,
 	)
-	handler := internalgitlab.NewHandler(service)
+	handler := internalgitea.NewHandler(service)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID())
@@ -77,7 +77,7 @@ func main() {
 
 	srv := &http.Server{Addr: cfg.HTTPAddr(), Handler: r, ReadHeaderTimeout: 5 * time.Second}
 	go func() {
-		log.Info("http server started", "addr", cfg.HTTPAddr(), "gitlab_base_url", cfg.GitLabBaseURL, "bot_username", cfg.GitLabBotUsername)
+		log.Info("http server started", "addr", cfg.HTTPAddr(), "gitea_base_url", cfg.GiteaBaseURL, "bot_username", cfg.GiteaBotUsername)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error("http server failed", "err", err)
 			os.Exit(1)
@@ -96,11 +96,11 @@ func main() {
 func maxFileSizeBytes() int {
 	value := os.Getenv("MAX_FILE_SIZE_BYTES")
 	if value == "" {
-		return internalgitlab.DefaultMaxFileSizeBytes
+		return internalgitea.DefaultMaxFileSizeBytes
 	}
 	parsed, err := strconv.Atoi(value)
 	if err != nil || parsed <= 0 {
-		return internalgitlab.DefaultMaxFileSizeBytes
+		return internalgitea.DefaultMaxFileSizeBytes
 	}
 	return parsed
 }

@@ -20,6 +20,15 @@ bin/
 *.out
 *.test
 *.log
+*.coverprofile
+
+### Backend build outputs
+backend/auth-service
+backend/*-service
+
+### Local temp files
+tmp/
+*.tmp
 
 ### Coverage
 coverage/

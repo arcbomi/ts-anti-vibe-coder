@@ -22,14 +22,14 @@ const smokeTimeout = 2 * time.Second
 
 func TestBackendServicesAreAlive(t *testing.T) {
 	services := map[string]string{
-		"api gateway":           envOrDefault("SMOKE_API_GATEWAY_URL", "http://localhost:8080"),
-		"auth service":          envOrDefault("SMOKE_AUTH_SERVICE_URL", "http://localhost:8081"),
-		"gitlab reader service": envOrDefault("SMOKE_GITLAB_READER_SERVICE_URL", "http://localhost:8082"),
-		"ai analysis service":   envOrDefault("SMOKE_AI_ANALYSIS_SERVICE_URL", "http://localhost:8083"),
-		"question service":      envOrDefault("SMOKE_QUESTION_SERVICE_URL", "http://localhost:8084"),
-		"exam service":          envOrDefault("SMOKE_EXAM_SERVICE_URL", "http://localhost:8085"),
-		"scheduler service":     envOrDefault("SMOKE_SCHEDULER_SERVICE_URL", "http://localhost:8086"),
-		"worker service":        envOrDefault("SMOKE_WORKER_SERVICE_URL", "http://localhost:8087"),
+		"api gateway":          envOrDefault("SMOKE_API_GATEWAY_URL", "http://localhost:8080"),
+		"auth service":         envOrDefault("SMOKE_AUTH_SERVICE_URL", "http://localhost:8081"),
+		"gitea reader service": envOrDefault("SMOKE_GITEA_READER_SERVICE_URL", "http://localhost:8082"),
+		"ai analysis service":  envOrDefault("SMOKE_AI_ANALYSIS_SERVICE_URL", "http://localhost:8083"),
+		"question service":     envOrDefault("SMOKE_QUESTION_SERVICE_URL", "http://localhost:8084"),
+		"exam service":         envOrDefault("SMOKE_EXAM_SERVICE_URL", "http://localhost:8085"),
+		"scheduler service":    envOrDefault("SMOKE_SCHEDULER_SERVICE_URL", "http://localhost:8086"),
+		"worker service":       envOrDefault("SMOKE_WORKER_SERVICE_URL", "http://localhost:8087"),
 	}
 
 	for name, baseURL := range services {
@@ -84,9 +84,9 @@ func TestRequiredDeploymentConfigExists(t *testing.T) {
 		"AI_BASE_URL":          cfg.AIBaseURL,
 		"AI_API_KEY":           cfg.AIAPIKey,
 		"AI_MODEL":             cfg.AIModel,
-		"GITLAB_BASE_URL":      cfg.GitLabBaseURL,
-		"GITLAB_BOT_TOKEN":     cfg.GitLabBotToken,
-		"GITLAB_BOT_USERNAME":  cfg.GitLabBotUsername,
+		"GITEA_BASE_URL":       cfg.GiteaBaseURL,
+		"GITEA_BOT_TOKEN":      cfg.GiteaBotToken,
+		"GITEA_BOT_USERNAME":   cfg.GiteaBotUsername,
 		"DATABASE_URL":         cfg.DatabaseURL,
 		"REDIS_ADDR/QUEUE_URL": cfg.RedisAddr,
 	}
@@ -98,9 +98,9 @@ func TestRequiredDeploymentConfigExists(t *testing.T) {
 }
 
 func TestBasicRepositoryFlowDoesNotCrash(t *testing.T) {
-	baseURL := envOrDefault("SMOKE_GITLAB_READER_SERVICE_URL", "http://localhost:8082")
+	baseURL := envOrDefault("SMOKE_GITEA_READER_SERVICE_URL", "http://localhost:8082")
 	endpoint := joinURL(baseURL, "/repositories")
-	body := strings.NewReader(`{"gitlab_repo_url":"not-a-valid-repository-url"}`)
+	body := strings.NewReader(`{"gitea_repo_url":"not-a-valid-repository-url"}`)
 	req, err := http.NewRequest(http.MethodPost, endpoint, body)
 	if err != nil {
 		t.Fatalf("create request: %v", err)

@@ -1,4 +1,4 @@
-package gitlab
+package gitea
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"path"
 	"strings"
 
-	"backend/pkg/sdk/gitlabclient"
+	"backend/pkg/sdk/giteaclient"
 )
 
 type Validator struct {
@@ -29,21 +29,21 @@ func (v *Validator) Normalize(raw string) (NormalizedRepo, error) {
 		return NormalizedRepo{}, fmt.Errorf("repository URL is required")
 	}
 
-	baseURL, projectPath, err := gitlabclient.ParseRepoURL(raw)
+	baseURL, projectPath, err := giteaclient.ParseRepoURL(raw)
 	if err != nil {
 		return NormalizedRepo{}, err
 	}
 	if v != nil && v.AllowedBaseURL != "" && !strings.EqualFold(strings.TrimRight(baseURL, "/"), v.AllowedBaseURL) {
-		return NormalizedRepo{}, fmt.Errorf("unsupported GitLab host")
+		return NormalizedRepo{}, fmt.Errorf("unsupported Gitea host")
 	}
 
 	u, err := url.Parse(baseURL)
 	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
-		return NormalizedRepo{}, fmt.Errorf("invalid GitLab URL")
+		return NormalizedRepo{}, fmt.Errorf("invalid Gitea URL")
 	}
 	projectPath = strings.Trim(path.Clean(projectPath), "/")
 	if projectPath == "." || projectPath == "" || strings.Contains(projectPath, "..") {
-		return NormalizedRepo{}, fmt.Errorf("invalid GitLab project path")
+		return NormalizedRepo{}, fmt.Errorf("invalid Gitea project path")
 	}
 
 	return NormalizedRepo{

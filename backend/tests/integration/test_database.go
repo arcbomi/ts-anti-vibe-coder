@@ -12,7 +12,7 @@ import (
 
 	"backend/internal/auth"
 	"backend/internal/exam"
-	gitlabsvc "backend/internal/gitlab"
+	giteasvc "backend/internal/gitea"
 	"backend/internal/question"
 	"backend/internal/worker"
 	"backend/pkg/sdk/database"
@@ -60,7 +60,7 @@ func resetTestDatabase(t *testing.T, db *sql.DB) {
 		}
 	}
 	stores := []interface{ EnsureSchema(context.Context) error }{
-		gitlabsvc.NewPostgresStore(db),
+		giteasvc.NewPostgresStore(db),
 		worker.NewPostgresStore(db),
 		question.NewPostgresStore(db),
 		exam.NewPostgresStore(db),
@@ -78,7 +78,7 @@ func createIntegrationUser(t *testing.T, db *sql.DB, email string) (userID strin
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := auth.NewService(auth.NewRepository(db), tm)
+	svc := auth.NewService(auth.NewRepository(db), tm, integrationAuthenticator{}, nil)
 	resp, err := svc.Register(context.Background(), auth.RegisterRequest{Name: "Integration User", Email: email, Password: "correct-password"})
 	if err != nil {
 		t.Fatalf("register integration user: %v", err)

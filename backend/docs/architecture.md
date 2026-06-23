@@ -2,7 +2,7 @@
 
 ## System overview
 
-The GitLab Codebase Understanding Exam Platform verifies whether a user understands a GitLab repository without requiring manual code upload or user-owned GitLab tokens.
+The Gitea Codebase Understanding Exam Platform verifies whether a user understands a Gitea repository without requiring manual code upload or user-owned Gitea tokens.
 
 The backend is a Go microservice system with:
 
@@ -10,14 +10,14 @@ The backend is a Go microservice system with:
 - A queue for long-running repository analysis and AI generation jobs.
 - PostgreSQL as shared persistence.
 - A centralized SDK in `backend/pkg/sdk` for common infrastructure and external clients.
-- A platform GitLab server userbot as the only GitLab credential used to read repositories.
+- A platform Gitea server userbot as the only Gitea credential used to read repositories.
 
 High-level user flow:
 
 ```txt
 User logs in
-  -> submits GitLab repository URL
-  -> adds platform GitLab userbot as collaborator
+  -> submits Gitea repository URL
+  -> adds platform Gitea userbot as collaborator
   -> clicks "I already added the bot"
   -> backend validates bot access
   -> backend reads safe repository files
@@ -40,7 +40,7 @@ backend/
       main.go
     auth-service/
       main.go
-    gitlab-reader-service/
+    gitea-reader-service/
       main.go
     ai-analysis-service/
       main.go
@@ -53,7 +53,7 @@ backend/
 
   internal/
     auth/
-    gitlab/
+    gitea/
     analysis/
     question/
     exam/
@@ -68,7 +68,7 @@ backend/
       queue/
       middleware/
       httpclient/
-      gitlabclient/
+      giteaclient/
       aiclient/
 ```
 
@@ -131,17 +131,17 @@ Responsibilities:
 - User logout.
 - Current user session lookup.
 - JWT or server-side session validation.
-- Future support for Tomorrow School's own account system or Tomorrow School SSO.
+- Uses Tomorrow School signin for login verification and keeps internal JWTs as the only trusted service tokens.
 
-### GitLab Reader Service
+### Gitea Reader Service
 
-Repository access and ingestion using the platform GitLab server userbot.
+Repository access and ingestion using the platform Gitea server userbot.
 
 Responsibilities:
 
-- Accept and validate GitLab repository URLs.
+- Accept and validate Gitea repository URLs.
 - Store repository metadata.
-- Check whether the server GitLab userbot has access after the user clicks **"I already added the bot"**.
+- Check whether the server Gitea userbot has access after the user clicks **"I already added the bot"**.
 - Read repository tree and important source files only after access is valid.
 - Ignore unsafe or irrelevant files.
 - Create analysis jobs.
@@ -232,7 +232,7 @@ Responsibilities:
 
 - Consume analysis jobs from the queue.
 - Update job status throughout the lifecycle.
-- Call `gitlab-reader-service` or `pkg/sdk/gitlabclient` to fetch safe repository files.
+- Call `gitea-reader-service` or `pkg/sdk/giteaclient` to fetch safe repository files.
 - Call `ai-analysis-service` to perform analysis and generation.
 - Retry transient failures.
 - Move permanently failed jobs to the dead-letter queue.
@@ -245,19 +245,19 @@ Frontend
   v
 API Gateway
   |-----------------> Auth Service
-  |-----------------> GitLab Reader Service
+  |-----------------> Gitea Reader Service
   |-----------------> Question Service
   |-----------------> Exam Service
 
-GitLab Reader Service
-  | validates bot access with pkg/sdk/gitlabclient
+Gitea Reader Service
+  | validates bot access with pkg/sdk/giteaclient
   | stores repository + analysis job in PostgreSQL
   v
 Queue: analysis:job
   |
   v
 Worker Service
-  | reads safe repository files through GitLab Reader Service or SDK
+  | reads safe repository files through Gitea Reader Service or SDK
   v
 AI Analysis Service
   | calls pkg/sdk/aiclient
@@ -281,11 +281,11 @@ MVP communication choices:
 ## Queue flow
 
 1. User submits a repository URL through the API Gateway.
-2. `gitlab-reader-service` stores repository metadata with status `pending`.
-3. User adds the platform GitLab userbot as collaborator.
+2. `gitea-reader-service` stores repository metadata with status `pending`.
+3. User adds the platform Gitea userbot as collaborator.
 4. User clicks **"I already added the bot"**.
-5. `gitlab-reader-service` validates bot access through `pkg/sdk/gitlabclient`.
-6. If access is valid, `gitlab-reader-service` creates an analysis job and enqueues `analysis:job`.
+5. `gitea-reader-service` validates bot access through `pkg/sdk/giteaclient`.
+6. If access is valid, `gitea-reader-service` creates an analysis job and enqueues `analysis:job`.
 7. `worker-service` consumes the message.
 8. `worker-service` updates status while reading, indexing, analyzing, generating, and saving questions.
 9. Transient failures are retried.
@@ -298,7 +298,7 @@ Queue message format:
   "job_id": "uuid",
   "user_id": "uuid",
   "repository_id": "uuid",
-  "gitlab_repo_url": "https://gitlab.com/user/project",
+  "gitea_repo_url": "https://gitea.com/user/project",
   "branch": "main"
 }
 ```
@@ -329,7 +329,7 @@ Status definitions:
 | Status | Meaning |
 | --- | --- |
 | `pending` | Repository or analysis job has been created but processing has not started. |
-| `checking_bot_access` | Backend is verifying that the platform GitLab userbot can access the repository. |
+| `checking_bot_access` | Backend is verifying that the platform Gitea userbot can access the repository. |
 | `reading_repository` | Safe repository tree and file content are being read. |
 | `indexing_code` | Repository files are being filtered, normalized, and prepared for analysis. |
 | `analyzing_code` | AI analysis service is building code understanding. |
@@ -344,14 +344,14 @@ All shared logic belongs in `backend/pkg/sdk`.
 
 | Module | Responsibility |
 | --- | --- |
-| `config` | Environment loading, service config, database config, queue config, GitLab bot config, AI provider config. |
+| `config` | Environment loading, service config, database config, queue config, Gitea bot config, AI provider config. |
 | `logger` | Structured logging, request ID support, service name support. |
 | `errors` | Shared error type, error codes, API error response format. |
 | `database` | PostgreSQL connection, migration helper, transaction helper. |
 | `queue` | Queue producer, queue consumer, retry support, dead-letter queue support. |
 | `middleware` | Auth middleware, request logging middleware, panic recovery middleware, CORS middleware. |
 | `httpclient` | Shared internal HTTP client, timeout, retry, service-to-service request helper. |
-| `gitlabclient` | GitLab bot API client, repository access checks, tree reading, file reading, unsafe file filtering. |
+| `giteaclient` | Gitea bot API client, repository access checks, tree reading, file reading, unsafe file filtering. |
 | `aiclient` | AI provider client, prompt request helper, JSON response parser, retry and timeout handling. |
 
 Services should import SDK modules directly when they need shared behavior:
@@ -360,7 +360,7 @@ Services should import SDK modules directly when they need shared behavior:
 import "backend/pkg/sdk/config"
 import "backend/pkg/sdk/logger"
 import "backend/pkg/sdk/queue"
-import "backend/pkg/sdk/gitlabclient"
+import "backend/pkg/sdk/giteaclient"
 ```
 
 Do not copy SDK logic into service packages. If two services need the same behavior, move that behavior into the SDK.
@@ -370,7 +370,7 @@ Do not copy SDK logic into service packages. If two services need the same behav
 PostgreSQL is shared persistence for the MVP, but ownership should still be clear:
 
 - `auth-service` owns users and sessions.
-- `gitlab-reader-service` owns repositories and repository access state.
+- `gitea-reader-service` owns repositories and repository access state.
 - `ai-analysis-service` owns analysis summaries and generation metadata.
 - `question-service` owns questions, options, correct answers, and explanations.
 - `exam-service` owns exam sessions, submissions, scores, pass/fail state, and certificates/pass records.
@@ -380,15 +380,15 @@ Cross-service writes should be avoided unless there is a clear ownership boundar
 
 ## Security rules
 
-- Never ask users for GitLab personal access tokens.
-- Use only the platform GitLab server userbot token for GitLab API calls.
+- Never ask users for Gitea personal access tokens.
+- Use only the platform Gitea server userbot token for Gitea API calls.
 - Encrypt sensitive config and secrets.
 - Never send `.env`, private keys, `.pem` files, or tokens to AI.
 - Filter unsafe files before AI analysis.
 - Validate repository access before reading repository contents.
 - Backend grading is the source of truth.
 - Frontend never receives correct answers during active exams.
-- Use least privilege for the GitLab bot account.
+- Use least privilege for the Gitea bot account.
 
 ## Exam-safe question delivery
 
@@ -422,7 +422,7 @@ internal_grading_metadata
 
 Before any content is sent to AI:
 
-1. Validate that the platform GitLab bot has repository access.
+1. Validate that the platform Gitea bot has repository access.
 2. Read the repository using the bot token only.
 3. Remove ignored paths and unsafe files.
 4. Apply size and binary-file limits.

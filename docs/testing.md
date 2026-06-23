@@ -1,6 +1,6 @@
 # Integration testing
 
-This project uses integration tests to verify the connected GitLab Codebase Understanding Exam Platform flow. These tests are not unit tests: they exercise HTTP handlers, PostgreSQL persistence, Redis queueing, worker job processing, fake GitLab boundary APIs, and fake AI boundary APIs together.
+This project uses integration tests to verify the connected Gitea Codebase Understanding Exam Platform flow. These tests are not unit tests: they exercise HTTP handlers, PostgreSQL persistence, Redis queueing, worker job processing, fake Gitea boundary APIs, and fake AI boundary APIs together.
 
 ## Commands
 
@@ -48,9 +48,9 @@ Use a real PostgreSQL database. The backend integration harness creates the `pgc
 
 Use a real Redis instance. Repository analysis startup publishes an `analysis_jobs` message to Redis. The integration worker test pops that real message and processes it through the worker handler and job runner.
 
-## Fake GitLab server
+## Fake Gitea server
 
-`backend/tests/integration/fake_gitlab_server.go` starts an `httptest.Server` that simulates the external GitLab API boundary only. It does not fake internal platform services.
+`backend/tests/integration/fake_gitea_server.go` starts an `httptest.Server` that simulates the external Gitea API boundary only. It does not fake internal platform services.
 
 It supports:
 
@@ -77,13 +77,13 @@ Backend integration tests cover:
 
 1. user registration/login and `/auth/me` with a real JWT;
 2. invalid login using the shared `{ success, data, error }` envelope;
-3. repository URL submission with no personal GitLab token;
-4. server GitLab userbot access checks through the fake GitLab API;
+3. repository URL submission with no personal Gitea token;
+4. server Gitea userbot access checks through the fake Gitea API;
 5. bot access denied errors with `BOT_ACCESS_DENIED`;
 6. analysis job creation in PostgreSQL;
 7. Redis queue job creation;
 8. worker consumption of the queued job;
-9. repository reading through fake GitLab;
+9. repository reading through fake Gitea;
 10. AI analysis and 20-question generation through fake AI;
 11. completed and failed analysis status persistence;
 12. question persistence for later exams;
@@ -106,7 +106,7 @@ These integration tests intentionally do not cover:
 - prompt wording unit assertions;
 - individual repository file filter edge cases;
 - admin question review, because generated questions are used directly by product design;
-- real GitLab.com or real AI provider calls, because those are replaced only at the external boundary by fake servers;
+- real Gitea.com or real AI provider calls, because those are replaced only at the external boundary by fake servers;
 - visual screenshot regression testing.
 
 ## Smoke tests
@@ -139,7 +139,7 @@ The smoke suite checks:
 6. PostgreSQL accepts a quick ping;
 7. Redis accepts a quick ping;
 8. required AI client configuration exists and is not a placeholder;
-9. required GitLab bot configuration exists and is not a placeholder;
+9. required Gitea bot configuration exists and is not a placeholder;
 10. a basic repository create request receives a fast validation response instead of a server error.
 
 ### Smoke test URL overrides
@@ -151,11 +151,11 @@ By default, the suite targets local development ports from `.env.example`. Overr
 | `SMOKE_FRONTEND_URL` | `http://localhost:5173` |
 | `SMOKE_API_GATEWAY_URL` | `http://localhost:8080` |
 | `SMOKE_AUTH_SERVICE_URL` | `http://localhost:8081` |
-| `SMOKE_GITLAB_READER_SERVICE_URL` | `http://localhost:8082` |
+| `SMOKE_GITEA_READER_SERVICE_URL` | `http://localhost:8082` |
 | `SMOKE_AI_ANALYSIS_SERVICE_URL` | `http://localhost:8083` |
 | `SMOKE_QUESTION_SERVICE_URL` | `http://localhost:8084` |
 | `SMOKE_EXAM_SERVICE_URL` | `http://localhost:8085` |
 | `SMOKE_SCHEDULER_SERVICE_URL` | `http://localhost:8086` |
 | `SMOKE_WORKER_SERVICE_URL` | `http://localhost:8087` |
 
-The database, queue, AI, and GitLab checks use the normal service configuration variables, including `DATABASE_URL`, `QUEUE_URL` or `REDIS_ADDR`, `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`, `GITLAB_BASE_URL`, `GITLAB_BOT_TOKEN`, and `GITLAB_BOT_USERNAME`.
+The database, queue, AI, and Gitea checks use the normal service configuration variables, including `DATABASE_URL`, `QUEUE_URL` or `REDIS_ADDR`, `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`, `GITEA_BASE_URL`, `GITEA_BOT_TOKEN`, and `GITEA_BOT_USERNAME`.

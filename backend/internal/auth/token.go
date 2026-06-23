@@ -44,12 +44,15 @@ func NewTokenManager(secret string, ttl time.Duration) (*TokenManager, error) {
 
 func (m *TokenManager) Generate(user User) (string, error) {
 	now := m.now().UTC()
+	firstName, lastName := normalizedNameParts(user.FirstName, user.LastName, user.Name)
 	claims := AccessClaims{
-		Subject: user.ID,
-		Email:   user.Email,
-		Name:    user.Name,
-		Issued:  now.Unix(),
-		Expires: now.Add(m.ttl).Unix(),
+		Subject:   user.ID,
+		Email:     user.Email,
+		Name:      user.Name,
+		FirstName: firstName,
+		LastName:  lastName,
+		Issued:    now.Unix(),
+		Expires:   now.Add(m.ttl).Unix(),
 	}
 	return m.sign(claims)
 }

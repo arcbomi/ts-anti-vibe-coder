@@ -20,7 +20,7 @@ describe('auth integration flow', () => {
       success: true,
       data: {
         access_token: 'jwt-from-backend',
-        user: { id: 'user-1', email: 'student@example.com', name: 'Student User' },
+        user: { id: 'user-1', email: 'student@example.com', name: 'student-user', full_name: 'Student User' },
       },
       error: null,
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
@@ -34,13 +34,16 @@ describe('auth integration flow', () => {
       </MemoryRouter>,
     )
 
-    await userEvent.type(screen.getByLabelText(/email/i), 'student@example.com')
+    await userEvent.type(screen.getByLabelText(/email or username/i), 'student@example.com')
     await userEvent.type(screen.getByLabelText(/password/i), 'correct-password')
     await userEvent.click(screen.getByRole('button', { name: /log in/i }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/auth/login'),
-      expect.objectContaining({ method: 'POST' }),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ credential: 'student@example.com', password: 'correct-password' }),
+      }),
     ))
     expect(localStorage.getItem('auth_token')).toBe('jwt-from-backend')
     expect(await screen.findByText('Dashboard')).toBeTruthy()

@@ -86,6 +86,10 @@ func writeAuthError(w http.ResponseWriter, err error) {
 		sdkerrors.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request.")
 	case errors.Is(err, ErrInvalidCredentials):
 		sdkerrors.WriteError(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Invalid email or password.")
+	case errors.Is(err, ErrAuthProviderTimedOut):
+		sdkerrors.WriteError(w, http.StatusGatewayTimeout, "AUTH_PROVIDER_TIMEOUT", "Authentication provider timed out.")
+	case errors.Is(err, ErrAuthProviderFailed):
+		sdkerrors.WriteError(w, http.StatusBadGateway, "AUTH_PROVIDER_UNAVAILABLE", "Authentication provider is unavailable.")
 	case errors.Is(err, ErrEmailAlreadyExists):
 		sdkerrors.WriteError(w, http.StatusConflict, "EMAIL_ALREADY_EXISTS", "Email already exists.")
 	case errors.Is(err, ErrTokenExpired):

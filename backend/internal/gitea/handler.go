@@ -1,4 +1,4 @@
-package gitlab
+package gitea
 
 import (
 	"encoding/json"
@@ -22,6 +22,7 @@ func NewHandler(service Service) *Handler {
 
 func (h *Handler) Routes() http.Handler {
 	r := chi.NewRouter()
+	r.Get("/repositories", h.listRepositories)
 	r.Post("/repositories", h.createRepository)
 	r.Post("/repositories/{id}/check-bot-access", h.checkBotAccess)
 	r.Post("/repositories/{id}/start-analysis", h.startAnalysis)
@@ -31,13 +32,13 @@ func (h *Handler) Routes() http.Handler {
 }
 
 type createRepositoryRequest struct {
-	GitLabRepoURL string `json:"gitlab_repo_url"`
+	GiteaRepoURL string `json:"gitea_repo_url"`
 }
 
 type createRepositoryResponse struct {
 	ID              string `json:"id"`
 	RepositoryID    string `json:"repository_id"`
-	GitLabRepoURL   string `json:"gitlab_repo_url"`
+	GiteaRepoURL    string `json:"gitea_repo_url"`
 	BotAccessStatus string `json:"bot_access_status"`
 }
 
@@ -55,16 +56,18 @@ type startAnalysisResponse struct {
 }
 
 type repositoryResponse struct {
-	ID                  string     `json:"id"`
-	RepositoryID        string     `json:"repository_id"`
-	GitLabRepoURL       string     `json:"gitlab_repo_url"`
-	GitLabProjectPath   string     `json:"gitlab_project_path,omitempty"`
-	DefaultBranch       string     `json:"default_branch,omitempty"`
-	BotAccessStatus     string     `json:"bot_access_status"`
-	CreatedAt           string     `json:"created_at,omitempty"`
-	UpdatedAt           string     `json:"updated_at,omitempty"`
-	LatestAnalysisJobID *string    `json:"latest_analysis_job_id,omitempty"`
-	LatestAnalysisJob   *jobRefDTO `json:"latest_analysis_job,omitempty"`
+	ID                         string     `json:"id"`
+	RepositoryID               string     `json:"repository_id"`
+	GiteaRepoURL               string     `json:"gitea_repo_url"`
+	GiteaProjectPath           string     `json:"gitea_project_path,omitempty"`
+	DefaultBranch              string     `json:"default_branch,omitempty"`
+	BotAccessStatus            string     `json:"bot_access_status"`
+	CreatedAt                  string     `json:"created_at,omitempty"`
+	UpdatedAt                  string     `json:"updated_at,omitempty"`
+	LatestAnalysisJobID        *string    `json:"latest_analysis_job_id,omitempty"`
+	LatestAnalysisStatus       *string    `json:"latest_analysis_status,omitempty"`
+	LatestAnalysisErrorMessage *string    `json:"latest_analysis_error_message,omitempty"`
+	LatestAnalysisJob          *jobRefDTO `json:"latest_analysis_job,omitempty"`
 }
 
 type analysisJobResponse struct {
@@ -87,12 +90,26 @@ func (h *Handler) createRepository(w http.ResponseWriter, r *http.Request) {
 		sdkerrors.WriteError(w, http.StatusBadRequest, ErrCodeInvalidRepositoryURL, "The repository URL is invalid.")
 		return
 	}
-	repo, err := h.service.CreateRepository(r.Context(), userIDFromRequest(r), req.GitLabRepoURL)
+	repo, err := h.service.CreateRepository(r.Context(), userIDFromRequest(r), req.GiteaRepoURL)
 	if err != nil {
 		writeServiceError(w, err)
 		return
 	}
-	sdkerrors.WriteSuccess(w, createRepositoryResponse{ID: repo.ID, RepositoryID: repo.ID, GitLabRepoURL: repo.GitLabRepoURL, BotAccessStatus: repo.BotAccessStatus})
+	sdkerrors.WriteSuccess(w, createRepositoryResponse{ID: repo.ID, RepositoryID: repo.ID, GiteaRepoURL: repo.GiteaRepoURL, BotAccessStatus: repo.BotAccessStatus})
+}
+
+func (h *Handler) listRepositories(w http.ResponseWriter, r *http.Request) {
+	repositories, err := h.service.ListRepositories(r.Context(), userIDFromRequest(r))
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	response := make([]repositoryResponse, 0, len(repositories))
+	for i := range repositories {
+		repo := repositories[i]
+		response = append(response, newRepositoryResponse(&repo))
+	}
+	sdkerrors.WriteSuccess(w, response)
 }
 
 func (h *Handler) checkBotAccess(w http.ResponseWriter, r *http.Request) {
@@ -152,15 +169,17 @@ func newRepositoryResponse(repo *Repository) repositoryResponse {
 		return repositoryResponse{}
 	}
 	resp := repositoryResponse{
-		ID:                  repo.ID,
-		RepositoryID:        repo.ID,
-		GitLabRepoURL:       repo.GitLabRepoURL,
-		GitLabProjectPath:   repo.GitLabProjectPath,
-		DefaultBranch:       repo.DefaultBranch,
-		BotAccessStatus:     repo.BotAccessStatus,
-		CreatedAt:           repo.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:           repo.UpdatedAt.UTC().Format(time.RFC3339),
-		LatestAnalysisJobID: repo.LatestAnalysisJobID,
+		ID:                         repo.ID,
+		RepositoryID:               repo.ID,
+		GiteaRepoURL:               repo.GiteaRepoURL,
+		GiteaProjectPath:           repo.GiteaProjectPath,
+		DefaultBranch:              repo.DefaultBranch,
+		BotAccessStatus:            repo.BotAccessStatus,
+		CreatedAt:                  repo.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:                  repo.UpdatedAt.UTC().Format(time.RFC3339),
+		LatestAnalysisJobID:        repo.LatestAnalysisJobID,
+		LatestAnalysisStatus:       repo.LatestAnalysisStatus,
+		LatestAnalysisErrorMessage: repo.LatestAnalysisErrorMessage,
 	}
 	if repo.LatestAnalysisJobID != nil && *repo.LatestAnalysisJobID != "" {
 		resp.LatestAnalysisJob = &jobRefDTO{ID: *repo.LatestAnalysisJobID}

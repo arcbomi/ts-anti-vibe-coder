@@ -29,8 +29,8 @@ func (s *PostgresStore) EnsureSchema(ctx context.Context) error {
 		`CREATE TABLE IF NOT EXISTS repositories (
 			id UUID PRIMARY KEY,
 			user_id UUID NOT NULL,
-			gitlab_repo_url TEXT NOT NULL,
-			gitlab_project_path TEXT NOT NULL,
+			gitea_repo_url TEXT NOT NULL,
+			gitea_project_path TEXT NOT NULL,
 			default_branch TEXT NOT NULL DEFAULT 'main',
 			bot_access_status TEXT NOT NULL DEFAULT 'unknown',
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

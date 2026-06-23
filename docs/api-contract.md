@@ -24,7 +24,7 @@ All endpoints return a standard response wrapper.
   "data": null,
   "error": {
     "code": "BOT_ACCESS_DENIED",
-    "message": "The GitLab bot does not have access to this repository."
+    "message": "The Gitea bot does not have access to this repository."
   }
 }
 ```
@@ -39,7 +39,7 @@ Request:
 
 ```json
 {
-  "email": "student@example.com",
+  "credential": "student@example.com or student-user",
   "password": "password"
 }
 ```
@@ -52,12 +52,13 @@ Response data:
   "user": {
     "id": "user-id",
     "email": "student@example.com",
-    "name": "Student Name"
+    "name": "Student Name",
+    "full_name": "Student Name"
   }
 }
 ```
 
-Future auth support should include Tomorrow School account login or Tomorrow School SSO.
+Login accepts either a Tomorrow School email or username as the `credential` field.
 
 ### POST `/auth/logout`
 
@@ -81,7 +82,8 @@ Response data:
 {
   "id": "user-id",
   "email": "student@example.com",
-  "name": "Student Name"
+  "name": "Student Name",
+  "full_name": "Student Name"
 }
 ```
 
@@ -89,13 +91,13 @@ Response data:
 
 ### POST `/repositories`
 
-Creates a repository record from a GitLab URL. This does not read code yet.
+Creates a repository record from a Gitea URL. This does not read code yet.
 
 Request:
 
 ```json
 {
-  "gitlab_repo_url": "https://gitlab.com/group/project"
+  "gitea_repo_url": "https://gitea.com/group/project"
 }
 ```
 
@@ -104,14 +106,14 @@ Response data:
 ```json
 {
   "id": "repository-id",
-  "gitlab_repo_url": "https://gitlab.com/group/project",
+  "gitea_repo_url": "https://gitea.com/group/project",
   "bot_access_status": "unknown"
 }
 ```
 
 ### POST `/repositories/:id/check-bot-access`
 
-Called after the user clicks **"I already added the bot"**. The backend checks whether the server GitLab userbot can access the repository.
+Called after the user clicks **"I already added the bot"**. The backend checks whether the server Gitea userbot can access the repository.
 
 Response data:
 
@@ -150,7 +152,7 @@ Response data:
 ```json
 {
   "id": "repository-id",
-  "gitlab_repo_url": "https://gitlab.com/group/project",
+  "gitea_repo_url": "https://gitea.com/group/project",
   "bot_access_status": "granted",
   "latest_analysis_job_id": "analysis-job-id"
 }
@@ -256,7 +258,7 @@ Response data:
       "options": {
         "A": "It reads request data and calls a service",
         "B": "It directly edits frontend state",
-        "C": "It creates a GitLab token for the user",
+        "C": "It creates a Gitea token for the user",
         "D": "It skips backend validation"
       },
       "source_file_path": "internal/http/handler.go"

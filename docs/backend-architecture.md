@@ -9,7 +9,7 @@ backend/
   cmd/
     api-gateway/
     auth-service/
-    gitlab-reader-service/
+    gitea-reader-service/
     ai-analysis-service/
     question-service/
     exam-service/
@@ -17,7 +17,7 @@ backend/
 
   internal/
     auth/
-    gitlab/
+    gitea/
     analysis/
     question/
     exam/
@@ -32,7 +32,7 @@ backend/
       queue/
       middleware/
       httpclient/
-      gitlabclient/
+      giteaclient/
       aiclient/
 ```
 
@@ -49,13 +49,13 @@ backend/
 
 - Handles login, logout, and current-user lookup.
 - Owns user identity and session/token behavior.
-- Should later support Tomorrow School account login or Tomorrow School SSO.
+- Uses Tomorrow School signin for credential verification while continuing to issue internal JWTs.
 
-### GitLab Reader Service
+### Gitea Reader Service
 
-- Verifies that the server GitLab userbot can access a repository.
+- Verifies that the server Gitea userbot can access a repository.
 - Reads repository files after bot access is confirmed.
-- Must not support personal GitLab token flow.
+- Must not support personal Gitea token flow.
 - Must not accept manual code uploads.
 
 ### AI Analysis Service
@@ -98,7 +98,7 @@ Typical queued job flow:
 6. Save questions.
 7. Mark job completed or failed.
 
-The queue should support retries for transient failures such as GitLab API timeouts or AI API errors. Permanent failures, such as denied bot access, should mark the job as failed with a clear error code.
+The queue should support retries for transient failures such as Gitea API timeouts or AI API errors. Permanent failures, such as denied bot access, should mark the job as failed with a clear error code.
 
 ## Job Status Design
 
@@ -131,7 +131,7 @@ SDK modules should include:
 - `queue`: queue producer and consumer helpers.
 - `middleware`: auth, request ID, CORS, logging, and error middleware.
 - `httpclient`: shared HTTP client settings, timeouts, and retries.
-- `gitlabclient`: server userbot GitLab API access.
+- `giteaclient`: server userbot Gitea API access.
 - `aiclient`: AI provider API access.
 
-Services should not duplicate common code for configuration, logging, database access, queue access, GitLab API calls, AI API calls, or HTTP middleware.
+Services should not duplicate common code for configuration, logging, database access, queue access, Gitea API calls, AI API calls, or HTTP middleware.

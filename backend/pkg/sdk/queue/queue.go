@@ -19,16 +19,16 @@ const (
 
 // AnalysisJobMessage is the shared job payload for long-running repository analysis.
 type AnalysisJobMessage struct {
-	JobID         string `json:"job_id"`
-	UserID        string `json:"user_id"`
-	RepositoryID  string `json:"repository_id"`
-	GitLabRepoURL string `json:"gitlab_repo_url"`
-	Branch        string `json:"branch"`
-	Attempt       int    `json:"attempt"`
+	JobID        string `json:"job_id"`
+	UserID       string `json:"user_id"`
+	RepositoryID string `json:"repository_id"`
+	GiteaRepoURL string `json:"gitea_repo_url"`
+	Branch       string `json:"branch"`
+	Attempt      int    `json:"attempt"`
 }
 
 func (m *AnalysisJobMessage) Validate() error {
-	if m.JobID == "" || m.UserID == "" || m.RepositoryID == "" || m.GitLabRepoURL == "" {
+	if m.JobID == "" || m.UserID == "" || m.RepositoryID == "" || m.GiteaRepoURL == "" {
 		return fmt.Errorf("missing required analysis job fields")
 	}
 	if m.Branch == "" {

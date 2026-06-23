@@ -9,12 +9,12 @@ import (
 
 	"backend/internal/analysis"
 	"backend/pkg/sdk/aiclient"
-	"backend/pkg/sdk/gitlabclient"
+	"backend/pkg/sdk/giteaclient"
 )
 
-type GitLabClient interface {
+type GiteaClient interface {
 	CheckAccess(ctx context.Context, repoURL string) (bool, error)
-	GetRepositoryTree(ctx context.Context, repoURL string, branch string) ([]gitlabclient.TreeNode, error)
+	GetRepositoryTree(ctx context.Context, repoURL string, branch string) ([]giteaclient.TreeNode, error)
 	GetFileContent(ctx context.Context, repoURL string, filePath string, branch string) ([]byte, error)
 }
 
@@ -24,14 +24,14 @@ type AIClient interface {
 
 type JobRunner struct {
 	store  AnalysisStore
-	gitlab GitLabClient
+	gitea  GiteaClient
 	ai     AIClient
 	filter RepositoryFilter
 	log    *slog.Logger
 }
 
-func NewJobRunner(store AnalysisStore, gl *gitlabclient.Client, ai *aiclient.Client, log *slog.Logger) *JobRunner {
-	return &JobRunner{store: store, gitlab: gl, ai: ai, filter: NewRepositoryFilter(MaxRepositoryFileSize), log: log}
+func NewJobRunner(store AnalysisStore, gl *giteaclient.Client, ai *aiclient.Client, log *slog.Logger) *JobRunner {
+	return &JobRunner{store: store, gitea: gl, ai: ai, filter: NewRepositoryFilter(MaxRepositoryFileSize), log: log}
 }
 
 func (r *JobRunner) Run(ctx context.Context, msg AnalysisJobMessage) error {
@@ -69,12 +69,12 @@ func (r *JobRunner) checkBotAccess(ctx context.Context, msg AnalysisJobMessage) 
 	if err := r.updateStatus(ctx, msg, StatusCheckingBotAccess); err != nil {
 		return err
 	}
-	ok, err := r.gitlab.CheckAccess(ctx, msg.GitLabRepoURL)
+	ok, err := r.gitea.CheckAccess(ctx, msg.GiteaRepoURL)
 	if err != nil {
-		return ClassifyExternalError(ErrCodeGitLabTemporary, err)
+		return ClassifyExternalError(ErrCodeGiteaTemporary, err)
 	}
 	if !ok {
-		perr := NewPermanentError(ErrCodeBotAccessDenied, "GitLab bot does not have access to the repository", nil)
+		perr := NewPermanentError(ErrCodeBotAccessDenied, "Gitea bot does not have access to the repository", nil)
 		_ = r.store.FailAnalysisJob(ctx, msg.JobID, perr.Code, perr.Message)
 		return perr
 	}
@@ -86,18 +86,18 @@ func (r *JobRunner) readRepository(ctx context.Context, msg AnalysisJobMessage) 
 	if err := r.updateStatus(ctx, msg, StatusReadingRepository); err != nil {
 		return nil, err
 	}
-	tree, err := r.gitlab.GetRepositoryTree(ctx, msg.GitLabRepoURL, msg.Branch)
+	tree, err := r.gitea.GetRepositoryTree(ctx, msg.GiteaRepoURL, msg.Branch)
 	if err != nil {
-		return nil, ClassifyExternalError(ErrCodeGitLabTemporary, err)
+		return nil, ClassifyExternalError(ErrCodeGiteaTemporary, err)
 	}
 	files := make([]RepositoryFile, 0, len(tree))
 	for _, node := range tree {
 		if node.Type != "blob" || !r.filter.ShouldRead(node.Path, 0) {
 			continue
 		}
-		content, err := r.gitlab.GetFileContent(ctx, msg.GitLabRepoURL, node.Path, msg.Branch)
+		content, err := r.gitea.GetFileContent(ctx, msg.GiteaRepoURL, node.Path, msg.Branch)
 		if err != nil {
-			return nil, ClassifyExternalError(ErrCodeGitLabTemporary, err)
+			return nil, ClassifyExternalError(ErrCodeGiteaTemporary, err)
 		}
 		if !r.filter.AcceptContent(node.Path, content) {
 			continue
@@ -114,7 +114,7 @@ func (r *JobRunner) readRepository(ctx context.Context, msg AnalysisJobMessage) 
 type CodeIndex struct {
 	UserID         string        `json:"user_id"`
 	RepositoryID   string        `json:"repository_id"`
-	GitLabRepoURL  string        `json:"gitlab_repository_url"`
+	GiteaRepoURL   string        `json:"gitea_repository_url"`
 	Branch         string        `json:"branch_name"`
 	RepositoryTree []string      `json:"repository_file_tree"`
 	SelectedFiles  []FileSummary `json:"selected_source_files"`
@@ -133,7 +133,7 @@ func (r *JobRunner) buildCodeIndex(ctx context.Context, msg AnalysisJobMessage, 
 	index := CodeIndex{
 		UserID:         msg.UserID,
 		RepositoryID:   msg.RepositoryID,
-		GitLabRepoURL:  msg.GitLabRepoURL,
+		GiteaRepoURL:   msg.GiteaRepoURL,
 		Branch:         msg.Branch,
 		RepositoryTree: make([]string, 0, len(files)),
 		SelectedFiles:  make([]FileSummary, 0, len(files)),
@@ -176,9 +176,9 @@ This agent is for the exam platform's AI analysis service.
 
 It does not analyze the backend code of this platform itself.
 
-It analyzes the GitLab repository submitted by the user.
+It analyzes the Gitea repository submitted by the user.
 
-The user will enter a GitLab repository URL, add the platform GitLab userbot as a collaborator, and click "I already added the bot."
+The user will enter a Gitea repository URL, add the platform Gitea userbot as a collaborator, and click "I already added the bot."
 
 After the backend confirms that the bot has access, this agent receives the user's repository code and analyzes it for exam question generation.
 
@@ -186,13 +186,13 @@ The purpose is to understand the user's project well enough to generate question
 
 ## Task
 
-Analyze the user's GitLab repository and understand how the submitted project works.
+Analyze the user's Gitea repository and understand how the submitted project works.
 
 This analysis will be used by the exam service to generate 20 English-only A/B/C/D questions.
 
 ## Responsibilities
 
-- Analyze the GitLab repository submitted by the user.
+- Analyze the Gitea repository submitted by the user.
 - Do not analyze this exam platform's own backend repository.
 - Detect the submitted project's language.
 - Detect the submitted project's framework.
@@ -210,7 +210,7 @@ The JSON payload below contains:
 
 - User ID
 - Repository ID
-- GitLab repository URL
+- Gitea repository URL
 - Branch name
 - Repository file tree
 - Selected source files from the user's repository

@@ -76,8 +76,8 @@ export function RepositoryPage() {
 
 ## Domain Ownership Rules
 
-- `auth` owns login, logout, current-user state, and future Tomorrow School login support.
-- `repository` owns GitLab repository URL submission and bot access status UI.
+- `auth` owns login, logout, current-user state, and Tomorrow School email-or-username login support.
+- `repository` owns Gitea repository URL submission and bot access status UI.
 - `analysis` owns analysis job progress and generated-question readiness state.
 - `question` owns question display models and reusable question UI.
 - `exam` owns exam creation, answer selection, submission, and result display.

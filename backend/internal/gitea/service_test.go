@@ -1,4 +1,4 @@
-package gitlab
+package gitea
 
 import (
 	"context"
@@ -20,7 +20,7 @@ func TestStartAnalysisMarksJobFailedWhenQueuePublishFails(t *testing.T) {
 		repo: &Repository{
 			ID:              repositoryID,
 			UserID:          userID,
-			GitLabRepoURL:   "https://gitlab.com/group/project",
+			GiteaRepoURL:    "https://gitea.com/group/project",
 			DefaultBranch:   "main",
 			BotAccessStatus: BotAccessGranted,
 		},
@@ -60,6 +60,9 @@ type fakeStore struct {
 func (f *fakeStore) EnsureSchema(context.Context) error { return nil }
 func (f *fakeStore) CreateRepository(context.Context, *Repository) error {
 	return nil
+}
+func (f *fakeStore) ListRepositories(context.Context, string) ([]Repository, error) {
+	return nil, nil
 }
 func (f *fakeStore) GetRepository(context.Context, string, string) (*Repository, error) {
 	if f.repo == nil {

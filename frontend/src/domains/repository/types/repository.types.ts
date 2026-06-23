@@ -2,13 +2,15 @@ export type BotAccessStatus = 'unknown' | 'checking' | 'granted' | 'denied' | 'f
 
 export type Repository = {
   id: string
-  gitlab_repo_url: string
+  gitea_repo_url: string
   bot_access_status: BotAccessStatus
   latestAnalysisJobId?: string | null
+  latestAnalysisStatus?: string | null
+  latestAnalysisErrorMessage?: string | null
 }
 
 export type CreateRepositoryRequest = {
-  gitlab_repo_url: string
+  gitea_repo_url: string
 }
 
 export type StartAnalysisResponse = {

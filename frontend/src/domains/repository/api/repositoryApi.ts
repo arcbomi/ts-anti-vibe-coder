@@ -8,22 +8,30 @@ import type {
 type RawRepository = {
   id?: string
   repository_id?: string
-  gitlab_repo_url: string
+  gitea_repo_url: string
   bot_access_status: Repository['bot_access_status']
   latest_analysis_job_id?: string | null
   latestAnalysisJobId?: string | null
+  latest_analysis_status?: string | null
+  latestAnalysisStatus?: string | null
+  latest_analysis_error_message?: string | null
+  latestAnalysisErrorMessage?: string | null
 }
 
 function normalizeRepository(repository: RawRepository): Repository {
   return {
     id: repository.id ?? repository.repository_id ?? '',
-    gitlab_repo_url: repository.gitlab_repo_url,
+    gitea_repo_url: repository.gitea_repo_url,
     bot_access_status: repository.bot_access_status,
     latestAnalysisJobId: repository.latestAnalysisJobId ?? repository.latest_analysis_job_id ?? null,
+    latestAnalysisStatus: repository.latestAnalysisStatus ?? repository.latest_analysis_status ?? null,
+    latestAnalysisErrorMessage: repository.latestAnalysisErrorMessage ?? repository.latest_analysis_error_message ?? null,
   }
 }
 
 export const repositoryApi = {
+  list: async () => (await apiFetch<RawRepository[]>('/repositories')).map(normalizeRepository),
+
   create: async (request: CreateRepositoryRequest) => {
     const repository = await apiFetch<RawRepository>('/repositories', {
       method: 'POST',
