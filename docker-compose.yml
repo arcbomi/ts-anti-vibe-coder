@@ -1,10 +1,10 @@
 x-backend-env: &backend-env
   APP_ENV: development
   LOG_LEVEL: ${LOG_LEVEL:-info}
-  DATABASE_URL: postgres://postgres:postgres@postgres:5432/anti_vibe?sslmode=disable
-  POSTGRES_DSN: postgres://postgres:postgres@postgres:5432/anti_vibe?sslmode=disable
-  QUEUE_URL: redis://redis:6379
-  REDIS_ADDR: redis:6379
+  DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/anti_vibe?sslmode=disable}
+  POSTGRES_DSN: ${POSTGRES_DSN:-postgres://postgres:postgres@postgres:5432/anti_vibe?sslmode=disable}
+  QUEUE_URL: ${QUEUE_URL:-redis://redis:6379}
+  REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
   QUEUE_NAMESPACE: ${QUEUE_NAMESPACE:-anti_vibe}
   ANALYSIS_QUEUE_NAME: ${ANALYSIS_QUEUE_NAME:-analysis_jobs}
   ANALYSIS_DEAD_LETTER_QUEUE_NAME: ${ANALYSIS_DEAD_LETTER_QUEUE_NAME:-analysis_jobs_dead}
@@ -44,23 +44,6 @@ x-backend-env: &backend-env
   MAX_JOB_ATTEMPTS: ${MAX_JOB_ATTEMPTS:-3}
   RETRY_DELAY_SECONDS: ${RETRY_DELAY_SECONDS:-30}
 
-x-backend-service: &backend-service
-  build:
-    context: ./backend
-    target: dev
-  volumes:
-    - ./backend:/app/backend
-    - go_mod_cache:/go/pkg/mod
-    - go_build_cache:/root/.cache/go-build
-  depends_on:
-    postgres:
-      condition: service_healthy
-    redis:
-      condition: service_healthy
-    migrate:
-      condition: service_completed_successfully
-  restart: unless-stopped
-
 x-node-service: &node-service
   image: node:22-alpine
   working_dir: /app/backend/nodejs
@@ -74,40 +57,22 @@ x-node-service: &node-service
       condition: service_healthy
     redis:
       condition: service_healthy
-    migrate:
-      condition: service_completed_successfully
     nodejs-deps:
       condition: service_completed_successfully
   restart: unless-stopped
 
 services:
-  migrate:
-    build:
-      context: ./backend
-      target: dev
-    command: go run ./cmd/migrate up
-    environment:
-      <<: *backend-env
-      SERVICE_NAME: migrate
-    volumes:
-      - ./backend:/app/backend
-      - go_mod_cache:/go/pkg/mod
-      - go_build_cache:/root/.cache/go-build
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   nodejs-deps:
     image: node:22-alpine
     working_dir: /app/backend/nodejs
-    command: sh -lc "corepack enable && pnpm install"
+    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/worker-service fastify pg redis @backend/microservice-sdk"
     volumes:
       - ./:/app
       - backend_node_modules:/app/backend/nodejs/node_modules
 
   api-gateway:
     <<: *node-service
-    command: sh -lc "corepack enable && pnpm dev:gateway"
+    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/api-gateway fastify @backend/microservice-sdk && pnpm dev:gateway"
     environment:
       <<: *backend-env
       API_GATEWAY_PORT: 8080
@@ -120,7 +85,7 @@ services:
 
   auth-service:
     <<: *node-service
-    command: sh -lc "corepack enable && pnpm dev:auth"
+    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/auth-service fastify pg @backend/microservice-sdk && pnpm dev:auth"
     environment:
       <<: *backend-env
       AUTH_SERVICE_PORT: 3005
@@ -140,7 +105,7 @@ services:
 
   user-service:
     <<: *node-service
-    command: sh -lc "corepack enable && pnpm dev:user"
+    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/user-service fastify pg @backend/microservice-sdk && pnpm dev:user"
     environment:
       <<: *backend-env
       USER_SERVICE_PORT: 3002
@@ -149,45 +114,25 @@ services:
 
   gitea-service:
     <<: *node-service
-    command: sh -lc "corepack enable && pnpm dev:gitea"
+    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/gitea-service fastify pg @backend/microservice-sdk && pnpm dev:gitea"
     environment:
       <<: *backend-env
       GITEA_SERVICE_PORT: 8082
     ports:
       - "${GITEA_READER_SERVICE_HTTP_PORT:-8082}:8082"
 
-  ai-analysis-service:
-    <<: *backend-service
-    command: go run ./cmd/ai-analysis-service
-    environment:
-      <<: *backend-env
-      SERVICE_NAME: ai-analysis-service
-      AI_ANALYSIS_SERVICE_HTTP_PORT: 8083
-    ports:
-      - "${AI_ANALYSIS_SERVICE_HTTP_PORT:-8083}:8083"
-
   exam-service:
     <<: *node-service
-    command: sh -lc "corepack enable && pnpm dev:exam"
+    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/exam-service fastify @backend/microservice-sdk && pnpm dev:exam"
     environment:
       <<: *backend-env
       EXAM_SERVICE_PORT: 3006
     ports:
       - "${EXAM_SERVICE_PORT:-3006}:3006"
 
-  scheduler-service:
-    <<: *backend-service
-    command: go run ./cmd/scheduler-service
-    environment:
-      <<: *backend-env
-      SERVICE_NAME: scheduler-service
-      SCHEDULER_SERVICE_HTTP_PORT: 8086
-    ports:
-      - "${SCHEDULER_SERVICE_HTTP_PORT:-8086}:8086"
-
   tomorrow-service:
     <<: *node-service
-    command: sh -lc "corepack enable && pnpm dev:tomorrow"
+    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/tomorrow-service fastify @backend/microservice-sdk && pnpm dev:tomorrow"
     environment:
       <<: *backend-env
       TOMORROW_SERVICE_PORT: 3001
@@ -196,7 +141,7 @@ services:
 
   worker-service:
     <<: *node-service
-    command: sh -lc "corepack enable && pnpm dev:worker"
+    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/worker-service fastify pg redis @backend/microservice-sdk && pnpm dev:worker"
     environment:
       <<: *backend-env
       WORKER_SERVICE_PORT: 3007
@@ -218,10 +163,7 @@ services:
       - "${FRONTEND_PORT:-5173}:5173"
     depends_on:
       - api-gateway
-    restart: unless-stopped
 
 volumes:
-  go_mod_cache:
-  go_build_cache:
   backend_node_modules:
   frontend_node_modules:

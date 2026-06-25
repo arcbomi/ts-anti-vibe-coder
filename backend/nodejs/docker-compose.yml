@@ -5,7 +5,7 @@ services:
   api-gateway:
     image: node:22-alpine
     working_dir: /app
-    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/api-gateway/src/server.ts"]
+    command: ["sh", "-lc", "corepack enable && sh ./scripts/ensure-deps.sh services/api-gateway fastify @backend/microservice-sdk && pnpm dev:gateway"]
     volumes:
       - ./:/app
     env_file:
@@ -16,7 +16,7 @@ services:
   gitea-service:
     image: node:22-alpine
     working_dir: /app
-    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/gitea-service/src/server.ts"]
+    command: ["sh", "-lc", "corepack enable && sh ./scripts/ensure-deps.sh services/gitea-service fastify pg @backend/microservice-sdk && pnpm dev:gitea"]
     volumes:
       - ./:/app
     env_file:
@@ -27,7 +27,7 @@ services:
   exam-service:
     image: node:22-alpine
     working_dir: /app
-    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/exam-service/src/server.ts"]
+    command: ["sh", "-lc", "corepack enable && sh ./scripts/ensure-deps.sh services/exam-service fastify @backend/microservice-sdk && pnpm dev:exam"]
     volumes:
       - ./:/app
     env_file:
@@ -38,7 +38,7 @@ services:
   tomorrow-service:
     image: node:22-alpine
     working_dir: /app
-    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/tomorrow-service/src/server.ts"]
+    command: ["sh", "-lc", "corepack enable && sh ./scripts/ensure-deps.sh services/tomorrow-service fastify @backend/microservice-sdk && pnpm dev:tomorrow"]
     volumes:
       - ./:/app
     env_file:
@@ -49,7 +49,7 @@ services:
   auth-service:
     image: node:22-alpine
     working_dir: /app
-    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/auth-service/src/server.ts"]
+    command: ["sh", "-lc", "corepack enable && sh ./scripts/ensure-deps.sh services/auth-service fastify pg @backend/microservice-sdk && pnpm dev:auth"]
     volumes:
       - ./:/app
     env_file:
@@ -60,7 +60,7 @@ services:
   user-service:
     image: node:22-alpine
     working_dir: /app
-    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/user-service/src/server.ts"]
+    command: ["sh", "-lc", "corepack enable && sh ./scripts/ensure-deps.sh services/user-service fastify pg @backend/microservice-sdk && pnpm dev:user"]
     volumes:
       - ./:/app
     env_file:
@@ -71,7 +71,7 @@ services:
   notification-service:
     image: node:22-alpine
     working_dir: /app
-    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/notification-service/src/server.ts"]
+    command: ["sh", "-lc", "corepack enable && sh ./scripts/ensure-deps.sh services/notification-service fastify @backend/microservice-sdk && pnpm dev:notification"]
     volumes:
       - ./:/app
     env_file:
@@ -82,7 +82,7 @@ services:
   relationship-service:
     image: node:22-alpine
     working_dir: /app
-    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/relationship-service/src/server.ts"]
+    command: ["sh", "-lc", "corepack enable && sh ./scripts/ensure-deps.sh services/relationship-service fastify @backend/microservice-sdk && pnpm dev:relationship"]
     volumes:
       - ./:/app
     env_file:
@@ -93,7 +93,7 @@ services:
   worker-service:
     image: node:22-alpine
     working_dir: /app
-    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/worker-service/src/server.ts"]
+    command: ["sh", "-lc", "corepack enable && sh ./scripts/ensure-deps.sh services/worker-service fastify pg redis @backend/microservice-sdk && pnpm dev:worker"]
     volumes:
       - ./:/app
     env_file:

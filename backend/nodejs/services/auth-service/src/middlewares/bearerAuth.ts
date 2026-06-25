@@ -1,6 +1,6 @@
 import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
 import type { AuthService } from "../services/authService.js";
-import { extractBearerToken } from "../utils/request.js";
+import { extractBearerToken } from "../shared/http/request.js";
 
 export function requireBearerAuth(authService: AuthService) {
   return async function bearerAuth(request: {

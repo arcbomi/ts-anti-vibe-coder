@@ -1,12 +1,12 @@
 import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
-import type { AuthServiceConfig, ExternalIdentity, TomorrowSchoolGraphQlResponse } from "../types/auth.js";
+import type { AuthServiceConfig, ExternalIdentity, TomorrowSchoolGraphQlResponse } from "../shared/contracts/auth.js";
 import {
   buildTomorrowSchoolAuthHeaders,
   buildTomorrowSchoolIdentity,
   extractTomorrowSchoolToken,
   isTomorrowSchoolInvalidCredentials,
   parseTomorrowSchoolJwtClaims
-} from "../utils/tomorrowSchool.js";
+} from "../shared/integrations/tomorrowSchool.js";
 
 type Fetcher = typeof fetch;
 

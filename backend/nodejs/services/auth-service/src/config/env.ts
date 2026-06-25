@@ -1,5 +1,5 @@
 import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
-import type { AuthServiceConfig } from "../types/auth.js";
+import type { AuthServiceConfig } from "../shared/contracts/auth.js";
 
 const DEFAULT_TOMORROW_SIGNIN_ENDPOINT = "https://01.tomorrow-school.ai/api/auth/signin";
 const DEFAULT_TOMORROW_REFERRER = "https://01.tomorrow-school.ai/?show-password=1";

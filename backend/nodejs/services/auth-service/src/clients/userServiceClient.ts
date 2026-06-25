@@ -1,5 +1,5 @@
 import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
-import type { UserRecordEnvelope, UserWriteRequest } from "../types/auth.js";
+import type { UserRecordEnvelope, UserWriteRequest } from "../shared/contracts/auth.js";
 
 type ServiceResponse<T> = {
   success: boolean;
@@ -19,33 +19,11 @@ export class UserServiceClient {
     }
   ) {}
 
-  createUser(input: UserWriteRequest) {
-    return this.request<UserRecordEnvelope>("/internal/users", {
-      method: "POST",
-      body: JSON.stringify(input)
-    });
-  }
-
-  updateUserForDevSeed(input: UserWriteRequest) {
-    return this.request<UserRecordEnvelope>("/internal/users/dev-seed", {
-      method: "PUT",
-      body: JSON.stringify(input)
-    });
-  }
-
   upsertExternalUser(input: UserWriteRequest) {
     return this.request<UserRecordEnvelope>("/internal/users/external", {
       method: "PUT",
       body: JSON.stringify(input)
     });
-  }
-
-  getUserByEmail(email: string) {
-    return this.request<UserRecordEnvelope | null>(`/internal/users/by-email?email=${encodeURIComponent(email)}`);
-  }
-
-  getUserById(id: string) {
-    return this.request<UserRecordEnvelope | null>(`/internal/users/by-id?id=${encodeURIComponent(id)}`);
   }
 
   private async request<T>(path: string, init: RequestInit = {}) {

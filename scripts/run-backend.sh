@@ -22,36 +22,43 @@ export SERVICE_NAME="${SERVICE}"
 
 if [[ "${SERVICE}" == "auth-service" ]]; then
   cd backend/nodejs
+  sh ./scripts/ensure-deps.sh services/auth-service fastify pg @backend/microservice-sdk
   exec pnpm dev:auth
 fi
 
 if [[ "${SERVICE}" == "user-service" ]]; then
   cd backend/nodejs
+  sh ./scripts/ensure-deps.sh services/user-service fastify pg @backend/microservice-sdk
   exec pnpm dev:user
 fi
 
 if [[ "${SERVICE}" == "api-gateway" ]]; then
   cd backend/nodejs
+  sh ./scripts/ensure-deps.sh services/api-gateway fastify @backend/microservice-sdk
   exec pnpm dev:gateway
 fi
 
 if [[ "${SERVICE}" == "gitea-service" || "${SERVICE}" == "gitea-reader-service" ]]; then
   cd backend/nodejs
+  sh ./scripts/ensure-deps.sh services/gitea-service fastify pg @backend/microservice-sdk
   exec pnpm dev:gitea
 fi
 
 if [[ "${SERVICE}" == "exam-service" ]]; then
   cd backend/nodejs
+  sh ./scripts/ensure-deps.sh services/exam-service fastify @backend/microservice-sdk
   exec pnpm dev:exam
 fi
 
 if [[ "${SERVICE}" == "tomorrow-service" ]]; then
   cd backend/nodejs
+  sh ./scripts/ensure-deps.sh services/tomorrow-service fastify @backend/microservice-sdk
   exec pnpm dev:tomorrow
 fi
 
 if [[ "${SERVICE}" == "worker-service" ]]; then
   cd backend/nodejs
+  sh ./scripts/ensure-deps.sh services/worker-service fastify pg redis @backend/microservice-sdk
   exec pnpm dev:worker
 fi
 

@@ -1,12 +1,11 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { sendSuccess } from "../../../../packages/microservice-sdk/src/index.js";
 import { buildLogoutResponse, buildMeResponse } from "../models/auth.js";
-import type { LoginRequest, RegisterRequest } from "../types/auth.js";
-import { validateLoginRequest, validateRegisterRequest } from "../validation/authValidation.js";
+import type { LoginRequest } from "../shared/contracts/auth.js";
+import { validateLoginRequest } from "../validation/authValidation.js";
 
 type AuthControllerDependencies = {
   authService: {
-    register(input: RegisterRequest): Promise<unknown>;
     login(input: LoginRequest): Promise<unknown>;
   };
 };
@@ -16,11 +15,6 @@ export class AuthController {
 
   constructor({ authService }: AuthControllerDependencies) {
     this.authService = authService;
-  }
-
-  async register(request: FastifyRequest, reply: FastifyReply) {
-    const response = await this.authService.register(validateRegisterRequest(request.body));
-    return sendSuccess(reply, response);
   }
 
   async login(request: FastifyRequest, reply: FastifyReply) {

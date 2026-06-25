@@ -1,6 +1,6 @@
 import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
-import type { LoginRequest, RegisterRequest } from "../types/auth.js";
-import { normalizeCredential } from "../utils/request.js";
+import type { LoginRequest } from "../shared/contracts/auth.js";
+import { normalizeCredential } from "../shared/http/request.js";
 
 function ensureObject(body: unknown) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -12,17 +12,6 @@ function ensureObject(body: unknown) {
 
   return body as Record<string, unknown>;
 }
-
-export function validateRegisterRequest(body: unknown): RegisterRequest {
-  const input = ensureObject(body);
-
-  return {
-    email: typeof input.email === "string" ? input.email.trim() : "",
-    name: typeof input.name === "string" ? input.name.trim() : "",
-    password: typeof input.password === "string" ? input.password : ""
-  };
-}
-
 export function validateLoginRequest(body: unknown): LoginRequest {
   const input = ensureObject(body);
   const credential = normalizeCredential({

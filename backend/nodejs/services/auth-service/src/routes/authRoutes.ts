@@ -7,7 +7,6 @@ export function registerAuthRoutes(
   app: FastifyInstance,
   dependencies: { authController: AuthController; authService: AuthService }
 ) {
-  app.post("/auth/register", async (request, reply) => dependencies.authController.register(request, reply));
   app.post("/auth/login", async (request, reply) => dependencies.authController.login(request, reply));
   app.post("/auth/logout", async (request, reply) => dependencies.authController.logout(request, reply));
   app.get(
