@@ -1,0 +1,16 @@
+{
+  "name": "@backend/api-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/server.ts",
+  "scripts": {
+    "dev": "tsx --env-file=../../.env ./src/server.ts",
+    "typecheck": "tsc --noEmit -p ../../tsconfig.json",
+    "test": "node --import ../../node_modules/tsx/dist/loader.mjs --test ./test/**/*.test.ts"
+  },
+  "dependencies": {
+    "@backend/microservice-sdk": "workspace:*",
+    "fastify": "^4.28.1"
+  }
+}

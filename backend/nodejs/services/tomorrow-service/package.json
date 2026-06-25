@@ -1,0 +1,10 @@
+{
+  "name": "@backend/tomorrow-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@backend/microservice-sdk": "workspace:*",
+    "fastify": "^4.28.1"
+  }
+}

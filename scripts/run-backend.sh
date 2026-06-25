@@ -20,5 +20,40 @@ export AUTH_JWT_HS256_SECRET="${AUTH_JWT_HS256_SECRET:-local-dev-jwt-secret-chan
 export JWT_SECRET="${JWT_SECRET:-${AUTH_JWT_HS256_SECRET}}"
 export SERVICE_NAME="${SERVICE}"
 
+if [[ "${SERVICE}" == "auth-service" ]]; then
+  cd backend/nodejs
+  exec pnpm dev:auth
+fi
+
+if [[ "${SERVICE}" == "user-service" ]]; then
+  cd backend/nodejs
+  exec pnpm dev:user
+fi
+
+if [[ "${SERVICE}" == "api-gateway" ]]; then
+  cd backend/nodejs
+  exec pnpm dev:gateway
+fi
+
+if [[ "${SERVICE}" == "gitea-service" || "${SERVICE}" == "gitea-reader-service" ]]; then
+  cd backend/nodejs
+  exec pnpm dev:gitea
+fi
+
+if [[ "${SERVICE}" == "exam-service" ]]; then
+  cd backend/nodejs
+  exec pnpm dev:exam
+fi
+
+if [[ "${SERVICE}" == "tomorrow-service" ]]; then
+  cd backend/nodejs
+  exec pnpm dev:tomorrow
+fi
+
+if [[ "${SERVICE}" == "worker-service" ]]; then
+  cd backend/nodejs
+  exec pnpm dev:worker
+fi
+
 cd backend
 go run "./cmd/${SERVICE}"

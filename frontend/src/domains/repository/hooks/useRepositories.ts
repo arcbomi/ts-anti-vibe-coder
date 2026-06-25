@@ -1,18 +1,29 @@
-import { useSyncExternalStore } from 'react'
+import { computed } from 'vue'
+
 import { ApiError } from '@/shared/api/client'
 import { repositoryApi } from '@/domains/repository/api/repositoryApi'
 import { repositoryStore } from '@/domains/repository/store/repositoryStore'
 import type { Repository } from '@/domains/repository/types/repository.types'
+import { useVanillaStore } from '@/shared/state/useVanillaStore'
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback
 }
 
 export function useRepositories() {
-  const state = useSyncExternalStore(repositoryStore.subscribe, repositoryStore.getState)
+  const state = useVanillaStore(repositoryStore)
 
   return {
-    ...state,
+    repositories: computed(() => state.value.repositories),
+    repository: computed(() => state.value.repository),
+    isLoadingRepositories: computed(() => state.value.isLoadingRepositories),
+    isSyncingTomorrow: computed(() => state.value.isSyncingTomorrow),
+    isCreating: computed(() => state.value.isCreating),
+    isCheckingBotAccess: computed(() => state.value.isCheckingBotAccess),
+    isStartingAnalysis: computed(() => state.value.isStartingAnalysis),
+    error: computed(() => state.value.error),
+    analysisJobId: computed(() => state.value.analysisJobId),
+    syncMessage: computed(() => state.value.syncMessage),
 
     loadRepositories: async () => {
       repositoryStore.getState().setLoadingRepositories(true)
@@ -75,9 +86,7 @@ export function useRepositories() {
         repositoryStore.getState().setRepositories(nextRepositories)
         return repository
       } catch (error) {
-        repositoryStore
-          .getState()
-          .setError(errorMessage(error, 'Unable to connect this Gitea repository.'))
+        repositoryStore.getState().setError(errorMessage(error, 'Unable to connect this Gitea repository.'))
         return null
       } finally {
         repositoryStore.getState().setCreating(false)

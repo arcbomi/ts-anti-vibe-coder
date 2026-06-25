@@ -1,4 +1,4 @@
-import { createStore } from 'zustand/vanilla'
+import { readonly, shallowRef } from 'vue'
 
 import type { AuthState, AuthUser } from '@/domains/auth/types/auth.types'
 
@@ -25,21 +25,71 @@ function writeStoredToken(token: string | null) {
   else localStorage.removeItem(AUTH_TOKEN_KEY)
 }
 
-export const authStore = createStore<AuthStore>((set) => ({
+const state = shallowRef<AuthState>({
   user: null,
   token: readStoredToken(),
   isLoading: false,
   error: null,
+})
 
-  setUser: (user) => set({ user }),
+const listeners = new Set<() => void>()
+
+let snapshot: AuthStore
+
+function emitChange() {
+  for (const listener of listeners) listener()
+}
+
+function refreshSnapshot() {
+  snapshot = {
+    ...state.value,
+    ...actions,
+  }
+}
+
+function updateState(nextState: Partial<AuthState>) {
+  state.value = { ...state.value, ...nextState }
+  refreshSnapshot()
+  emitChange()
+}
+
+const actions: AuthActions = {
+  setUser: (user) => {
+    updateState({ user })
+  },
   setToken: (token) => {
     writeStoredToken(token)
-    set({ token })
+    updateState({ token })
   },
-  setLoading: (isLoading) => set({ isLoading }),
-  setError: (error) => set({ error }),
+  setLoading: (isLoading) => {
+    updateState({ isLoading })
+  },
+  setError: (error) => {
+    updateState({ error })
+  },
   clearAuth: () => {
     writeStoredToken(null)
-    set({ user: null, token: null, isLoading: false, error: null })
+    state.value = { user: null, token: null, isLoading: false, error: null }
+    refreshSnapshot()
+    emitChange()
   },
-}))
+}
+refreshSnapshot()
+
+export const authState = readonly(state)
+
+export const authStore = {
+  subscribe(listener: () => void) {
+    listeners.add(listener)
+
+    return () => {
+      listeners.delete(listener)
+    }
+  },
+  getState() {
+    return snapshot
+  },
+  getInitialState() {
+    return snapshot
+  },
+}

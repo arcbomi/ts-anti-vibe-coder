@@ -4,12 +4,13 @@
 
 The Gitea Codebase Understanding Exam Platform verifies whether a user understands a Gitea repository without requiring manual code upload or user-owned Gitea tokens.
 
-The backend is a Go microservice system with:
+The backend is a microservice system with mixed runtimes:
 
 - HTTP services for synchronous product flows.
 - A queue for long-running repository analysis and AI generation jobs.
 - PostgreSQL as shared persistence.
-- A centralized SDK in `backend/pkg/sdk` for common infrastructure and external clients.
+- A Node.js workspace in `backend/nodejs` for browser-facing and newer services.
+- A centralized Go SDK in `backend/pkg/sdk` for common infrastructure and external clients.
 - A platform Gitea server userbot as the only Gitea credential used to read repositories.
 
 High-level user flow:
@@ -35,13 +36,18 @@ backend/
   docs/
     architecture.md
 
+  nodejs/
+    services/
+      api-gateway/
+      auth-service/
+      gitea-service/
+      user-service/
+      notification-service/
+      relationship-service/
+    packages/
+      microservice-sdk/
+
   cmd/
-    api-gateway/
-      main.go
-    auth-service/
-      main.go
-    gitea-reader-service/
-      main.go
     ai-analysis-service/
       main.go
     question-service/
@@ -95,7 +101,7 @@ Public HTTP entry point for the frontend.
 Responsibilities:
 
 - Receive frontend requests.
-- Validate user session through `auth-service` or shared auth middleware.
+- Validate user session through JWT middleware.
 - Forward requests to internal services.
 - Return unified API response and error response shapes.
 - Avoid heavy business logic.

@@ -1,27 +1,32 @@
 # Backend Architecture
 
-## Go Microservice Architecture
+## Backend Microservice Architecture
 
-The backend is built with Go microservices. Each service is a different Go program under `backend/cmd`, and each service owns a focused part of the platform.
+The backend now uses a mixed microservice runtime. The browser-facing gateway and several domain services live in the Node.js workspace under `backend/nodejs`, while the remaining long-running and legacy services still live under `backend/cmd`.
 
 ```txt
 backend/
+  nodejs/
+    services/
+      api-gateway/
+      auth-service/
+      gitea-service/
+      user-service/
+      notification-service/
+      relationship-service/
+    packages/
+      microservice-sdk/
+
   cmd/
-    api-gateway/
-    auth-service/
-    gitea-reader-service/
     ai-analysis-service/
     question-service/
     exam-service/
-    worker-service/
+    scheduler-service/
 
   internal/
-    auth/
-    gitea/
     analysis/
-    question/
-    exam/
-    worker/
+    gitea/
+    scheduler/
 
   pkg/
     sdk/
@@ -40,16 +45,22 @@ backend/
 
 ### API Gateway
 
+- Lives in `backend/nodejs/services/api-gateway`.
 - Exposes the public HTTP API to the frontend.
-- Handles request routing to internal services.
-- Applies shared middleware such as authentication, logging, CORS, and error formatting.
-- Ensures browser clients do not call internal services directly.
+- Routes requests to internal services through explicit proxy rules.
+- Applies JWT validation, CORS handling, and safe header forwarding.
 
 ### Auth Service
 
-- Handles login, logout, and current-user lookup.
-- Owns user identity and session/token behavior.
+- Handles login, logout, JWT issuance, and current-user authentication.
 - Uses Tomorrow School signin for credential verification while continuing to issue internal JWTs.
+- Calls `user-service` for user record creation, lookup, and profile data.
+
+### User Service
+
+- Owns the `users` table and user/profile data.
+- Handles user lookup by id, email, and username.
+- Exposes internal-only APIs for user creation, profile updates, public user projection, and existence checks.
 
 ### Gitea Reader Service
 

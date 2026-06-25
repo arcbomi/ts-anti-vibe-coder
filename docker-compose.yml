@@ -23,11 +23,23 @@ x-backend-env: &backend-env
   JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me}
   JWT_ACCESS_TOKEN_TTL_MINUTES: ${JWT_ACCESS_TOKEN_TTL_MINUTES:-60}
   JWT_REFRESH_TOKEN_TTL_DAYS: ${JWT_REFRESH_TOKEN_TTL_DAYS:-30}
+  AUTH_SERVICE_REPOSITORY: ${AUTH_SERVICE_REPOSITORY:-database}
+  USER_SERVICE_REPOSITORY: ${USER_SERVICE_REPOSITORY:-database}
   EXAM_TIMEZONE: ${EXAM_TIMEZONE:-Asia/Shanghai}
   EXAM_OPEN_DOW: ${EXAM_OPEN_DOW:-Saturday}
   EXAM_PASS_PERCENT: ${EXAM_PASS_PERCENT:-70}
+  EXAM_SERVICE_INTERNAL_TOKEN: ${EXAM_SERVICE_INTERNAL_TOKEN:-local-internal-token}
   REPO_STORAGE_ROOT: ${REPO_STORAGE_ROOT:-data/repos}
   REPO_CLONE_TIMEOUT_SECONDS: ${REPO_CLONE_TIMEOUT_SECONDS:-60}
+  TOMORROW_SERVICE_URL: ${TOMORROW_SERVICE_URL:-http://tomorrow-service:3001}
+  USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:3002}
+  TOMORROW_USERNAME: ${TOMORROW_USERNAME:-dmukhat}
+  TOMORROW_PASSWORD: ${TOMORROW_PASSWORD:-change-me}
+  TOMORROW_AUTH_ENDPOINT: ${TOMORROW_AUTH_ENDPOINT:-}
+  TOMORROW_REFERRER: ${TOMORROW_REFERRER:-}
+  TOMORROW_X_JWT_TOKEN: ${TOMORROW_X_JWT_TOKEN:-undefined}
+  TOMORROW_SESSION_ID: ${TOMORROW_SESSION_ID:-}
+  TOMORROW_PROFILE_PATH: ${TOMORROW_PROFILE_PATH:-/intra/astanahub/profile?event=96}
   WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-3}
   MAX_JOB_ATTEMPTS: ${MAX_JOB_ATTEMPTS:-3}
   RETRY_DELAY_SECONDS: ${RETRY_DELAY_SECONDS:-30}
@@ -49,6 +61,25 @@ x-backend-service: &backend-service
       condition: service_completed_successfully
   restart: unless-stopped
 
+x-node-service: &node-service
+  image: node:22-alpine
+  working_dir: /app/backend/nodejs
+  environment:
+    <<: *backend-env
+  volumes:
+    - ./:/app
+    - backend_node_modules:/app/backend/nodejs/node_modules
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
+    nodejs-deps:
+      condition: service_completed_successfully
+  restart: unless-stopped
+
 services:
   migrate:
     build:
@@ -66,37 +97,62 @@ services:
       postgres:
         condition: service_healthy
 
+  nodejs-deps:
+    image: node:22-alpine
+    working_dir: /app/backend/nodejs
+    command: sh -lc "corepack enable && pnpm install"
+    volumes:
+      - ./:/app
+      - backend_node_modules:/app/backend/nodejs/node_modules
+
   api-gateway:
-    <<: *backend-service
-    command: go run ./cmd/api-gateway
+    <<: *node-service
+    command: sh -lc "corepack enable && pnpm dev:gateway"
     environment:
       <<: *backend-env
-      SERVICE_NAME: api-gateway
-      API_GATEWAY_HTTP_PORT: 8080
-      AUTH_SERVICE_BASE_URL: http://auth-service:8081
-      GITEA_READER_SERVICE_BASE_URL: http://gitea-reader-service:8082
-      QUESTION_SERVICE_BASE_URL: http://question-service:8084
-      EXAM_SERVICE_BASE_URL: http://exam-service:8085
+      API_GATEWAY_PORT: 8080
+      AUTH_SERVICE_BASE_URL: http://auth-service:3005
+      GITEA_READER_SERVICE_BASE_URL: http://gitea-service:8082
+      QUESTION_SERVICE_BASE_URL: http://exam-service:3006/api/v1
+      EXAM_SERVICE_BASE_URL: http://exam-service:3006/api/v1
     ports:
-      - "${API_GATEWAY_HTTP_PORT:-8080}:8080"
+      - "${API_GATEWAY_PORT:-8080}:8080"
 
   auth-service:
-    <<: *backend-service
-    command: go run ./cmd/auth-service
+    <<: *node-service
+    command: sh -lc "corepack enable && pnpm dev:auth"
     environment:
       <<: *backend-env
-      SERVICE_NAME: auth-service
-      AUTH_SERVICE_HTTP_PORT: 8081
+      AUTH_SERVICE_PORT: 3005
+      AUTH_CREDENTIAL_SECRET: ${AUTH_CREDENTIAL_SECRET:-local-dev-jwt-secret-change-me}
+      TOMORROW_SCHOOL_AUTH_ENDPOINT: ${TOMORROW_SCHOOL_AUTH_ENDPOINT:-https://01.tomorrow-school.ai/api/auth/signin}
+      TOMORROW_SCHOOL_AUTH_TIMEOUT_SECONDS: ${TOMORROW_SCHOOL_AUTH_TIMEOUT_SECONDS:-10}
+      TOMORROW_SCHOOL_AUTH_REFERRER: ${TOMORROW_SCHOOL_AUTH_REFERRER:-}
+      TOMORROW_SCHOOL_AUTH_X_JWT_TOKEN: ${TOMORROW_SCHOOL_AUTH_X_JWT_TOKEN:-undefined}
+      TOMORROW_SCHOOL_AUTH_SESSION_ID: ${TOMORROW_SCHOOL_AUTH_SESSION_ID:-}
+      TOMORROW_SCHOOL_GRAPHQL_ENDPOINT: ${TOMORROW_SCHOOL_GRAPHQL_ENDPOINT:-}
+      TOMORROW_SCHOOL_GRAPHQL_ROLE: ${TOMORROW_SCHOOL_GRAPHQL_ROLE:-user}
+      DEV_SEED_USER_NAME: ${DEV_SEED_USER_NAME:-Student User}
+      DEV_SEED_USER_EMAIL: ${DEV_SEED_USER_EMAIL:-student@example.com}
+      DEV_SEED_USER_PASSWORD: ${DEV_SEED_USER_PASSWORD:-correct-password}
     ports:
-      - "${AUTH_SERVICE_HTTP_PORT:-8081}:8081"
+      - "${AUTH_SERVICE_PORT:-3005}:3005"
 
-  gitea-reader-service:
-    <<: *backend-service
-    command: go run ./cmd/gitea-reader-service
+  user-service:
+    <<: *node-service
+    command: sh -lc "corepack enable && pnpm dev:user"
     environment:
       <<: *backend-env
-      SERVICE_NAME: gitea-reader-service
-      GITEA_READER_SERVICE_HTTP_PORT: 8082
+      USER_SERVICE_PORT: 3002
+    ports:
+      - "${USER_SERVICE_PORT:-3002}:3002"
+
+  gitea-service:
+    <<: *node-service
+    command: sh -lc "corepack enable && pnpm dev:gitea"
+    environment:
+      <<: *backend-env
+      GITEA_SERVICE_PORT: 8082
     ports:
       - "${GITEA_READER_SERVICE_HTTP_PORT:-8082}:8082"
 
@@ -110,25 +166,14 @@ services:
     ports:
       - "${AI_ANALYSIS_SERVICE_HTTP_PORT:-8083}:8083"
 
-  question-service:
-    <<: *backend-service
-    command: go run ./cmd/question-service
-    environment:
-      <<: *backend-env
-      SERVICE_NAME: question-service
-      QUESTION_SERVICE_HTTP_PORT: 8084
-    ports:
-      - "${QUESTION_SERVICE_HTTP_PORT:-8084}:8084"
-
   exam-service:
-    <<: *backend-service
-    command: go run ./cmd/exam-service
+    <<: *node-service
+    command: sh -lc "corepack enable && pnpm dev:exam"
     environment:
       <<: *backend-env
-      SERVICE_NAME: exam-service
-      EXAM_SERVICE_HTTP_PORT: 8085
+      EXAM_SERVICE_PORT: 3006
     ports:
-      - "${EXAM_SERVICE_HTTP_PORT:-8085}:8085"
+      - "${EXAM_SERVICE_PORT:-3006}:3006"
 
   scheduler-service:
     <<: *backend-service
@@ -140,15 +185,23 @@ services:
     ports:
       - "${SCHEDULER_SERVICE_HTTP_PORT:-8086}:8086"
 
-  worker-service:
-    <<: *backend-service
-    command: go run ./cmd/worker-service
+  tomorrow-service:
+    <<: *node-service
+    command: sh -lc "corepack enable && pnpm dev:tomorrow"
     environment:
       <<: *backend-env
-      SERVICE_NAME: worker-service
-      WORKER_SERVICE_HTTP_PORT: 8087
+      TOMORROW_SERVICE_PORT: 3001
     ports:
-      - "${WORKER_SERVICE_HTTP_PORT:-8087}:8087"
+      - "${TOMORROW_SERVICE_PORT:-3001}:3001"
+
+  worker-service:
+    <<: *node-service
+    command: sh -lc "corepack enable && pnpm dev:worker"
+    environment:
+      <<: *backend-env
+      WORKER_SERVICE_PORT: 3007
+    ports:
+      - "${WORKER_SERVICE_PORT:-3007}:3007"
 
   frontend:
     build:
@@ -170,4 +223,5 @@ services:
 volumes:
   go_mod_cache:
   go_build_cache:
+  backend_node_modules:
   frontend_node_modules:

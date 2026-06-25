@@ -38,19 +38,20 @@ FRONTEND_ORIGIN=https://app.example.com
 VITE_API_BASE_URL=https://api.example.com
 ```
 
-The exact names can be adjusted during implementation, but all services should load configuration through `backend/pkg/sdk/config`.
+The exact names can be adjusted during implementation, but the current Node gateway expects `API_GATEWAY_PORT`, `AUTH_SERVICE_BASE_URL`, `GITEA_READER_SERVICE_BASE_URL`, `QUESTION_SERVICE_BASE_URL`, and `EXAM_SERVICE_BASE_URL`.
 
 ## Running Backend Services
 
-Each service should be runnable as a Go program under `backend/cmd`.
+The gateway runs from the Node workspace in `backend/nodejs`, while several internal services still run from `backend/cmd`.
 
 Example local commands:
 
 ```bash
-cd backend
-go run ./cmd/api-gateway
-go run ./cmd/auth-service
-go run ./cmd/gitea-reader-service
+cd backend/nodejs
+pnpm dev:gateway
+pnpm dev:auth
+pnpm dev:gitea
+cd ../backend
 go run ./cmd/ai-analysis-service
 go run ./cmd/question-service
 go run ./cmd/exam-service

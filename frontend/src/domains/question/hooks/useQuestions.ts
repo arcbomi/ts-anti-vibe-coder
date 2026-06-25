@@ -1,55 +1,63 @@
-import { useCallback, useEffect, useState } from 'react'
+import { ref, toValue, watch, type MaybeRefOrGetter, type Ref } from 'vue'
 
 import { getAnalysisJobQuestions, getExamQuestions } from '@/domains/question/api/questionApi'
 import type { ExamQuestion } from '@/domains/question/types/question.types'
 
 interface UseQuestionsOptions {
-  analysisJobId?: string
+  analysisJobId?: MaybeRefOrGetter<string | undefined>
 }
 
 interface UseQuestionsResult {
-  questions: ExamQuestion[]
-  loading: boolean
-  error: string | null
+  questions: Ref<ExamQuestion[]>
+  loading: Ref<boolean>
+  error: Ref<string | null>
   refetch: () => Promise<void>
 }
 
-export function useQuestions(examId?: string, options: UseQuestionsOptions = {}): UseQuestionsResult {
+export function useQuestions(
+  examId?: MaybeRefOrGetter<string | undefined>,
+  options: UseQuestionsOptions = {},
+): UseQuestionsResult {
   const { analysisJobId } = options
-  const [questions, setQuestions] = useState<ExamQuestion[]>([])
-  const [loading, setLoading] = useState(Boolean(examId || analysisJobId))
-  const [error, setError] = useState<string | null>(null)
+  const questions = ref<ExamQuestion[]>([])
+  const loading = ref(Boolean(toValue(examId) || toValue(analysisJobId)))
+  const error = ref<string | null>(null)
 
-  const refetch = useCallback(async () => {
-    await Promise.resolve()
+  const refetch = async () => {
+    const currentExamId = toValue(examId)
+    const currentAnalysisJobId = toValue(analysisJobId)
 
-    if (!examId && !analysisJobId) {
-      setQuestions([])
-      setLoading(false)
-      setError(null)
+    if (!currentExamId && !currentAnalysisJobId) {
+      questions.value = []
+      loading.value = false
+      error.value = null
       return
     }
 
-    setLoading(true)
-    setError(null)
+    loading.value = true
+    error.value = null
 
     try {
-      const loadedQuestions = examId ? await getExamQuestions(examId) : await getAnalysisJobQuestions(analysisJobId as string)
-      setQuestions(loadedQuestions)
+      questions.value = currentExamId
+        ? await getExamQuestions(currentExamId)
+        : await getAnalysisJobQuestions(currentAnalysisJobId as string)
     } catch (caughtError: unknown) {
-      const message = caughtError instanceof Error ? caughtError.message : 'Failed to load questions.'
-      setError(message)
-      setQuestions([])
+      error.value = caughtError instanceof Error ? caughtError.message : 'Failed to load questions.'
+      questions.value = []
     } finally {
-      setLoading(false)
+      loading.value = false
     }
-  }, [analysisJobId, examId])
+  }
 
-  useEffect(() => {
-    queueMicrotask(() => {
-      void refetch()
-    })
-  }, [refetch])
+  watch(
+    [() => toValue(examId), () => toValue(analysisJobId)],
+    () => {
+      queueMicrotask(() => {
+        void refetch()
+      })
+    },
+    { immediate: true },
+  )
 
   return { questions, loading, error, refetch }
 }

@@ -1,4 +1,4 @@
-.PHONY: dev dev-down infra-up infra-down migrate backend-test test-integration smoke-test backend-run-api backend-run-auth backend-run-gitea backend-run-analysis backend-run-question backend-run-exam backend-run-scheduler backend-run-worker frontend-install frontend-dev frontend-build docker-build
+.PHONY: dev dev-down infra-up infra-down migrate backend-test test-integration smoke-test backend-run-api backend-run-auth backend-run-gitea backend-run-analysis backend-run-exam backend-run-scheduler backend-run-worker frontend-install frontend-dev frontend-build docker-build
 
 dev:
 	./scripts/dev-up.sh
@@ -31,13 +31,10 @@ backend-run-auth:
 	./scripts/run-backend.sh auth-service
 
 backend-run-gitea:
-	./scripts/run-backend.sh gitea-reader-service
+	./scripts/run-backend.sh gitea-service
 
 backend-run-analysis:
 	./scripts/run-backend.sh ai-analysis-service
-
-backend-run-question:
-	./scripts/run-backend.sh question-service
 
 backend-run-exam:
 	./scripts/run-backend.sh exam-service

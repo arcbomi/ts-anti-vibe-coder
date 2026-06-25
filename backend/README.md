@@ -1,8 +1,8 @@
-# Go Backend
+# Backend
 
 This backend powers the Gitea Codebase Understanding Exam Platform. Its purpose is to verify that a user truly understands a Gitea repository by reading the repository through the platform Gitea server userbot, generating English-only A/B/C/D questions with AI, running an offline Friday exam, and grading answers on the backend as the source of truth.
 
-The backend is intentionally split into small, independent Go programs under `backend/cmd`. Shared infrastructure, clients, configuration, logging, middleware, error handling, database access, queue access, Gitea access, and AI access must live in the centralized SDK under `backend/pkg/sdk`.
+The backend is intentionally split into small, independent services. Node.js services live in `backend/nodejs/services`, while the remaining Go services still live under `backend/cmd`. Shared Go infrastructure stays in `backend/pkg/sdk`, and shared Node utilities live in `backend/nodejs/packages`.
 
 ## Product rules
 
@@ -22,30 +22,34 @@ Each service is independently runnable, independently deployable, independently 
 
 | Service | Path | Responsibility |
 | --- | --- | --- |
-| API Gateway | `cmd/api-gateway` | Public HTTP entry point, session validation, request forwarding, unified API responses. |
-| Auth Service | `cmd/auth-service` | Login, logout, current user lookup, JWT/session validation. |
-| Gitea Reader Service | `cmd/gitea-reader-service` | Store repository metadata, check Gitea bot access, read safe repository files, create analysis jobs. |
+| API Gateway | `nodejs/services/api-gateway` | Public HTTP entry point, JWT validation, request forwarding, and browser-safe CORS behavior. |
+| Auth Service | `nodejs/services/auth-service` | Credential verification, JWT issuance, logout, and authenticated session validation. |
+| User Service | `nodejs/services/user-service` | User record storage, profile/basic info, user lookup, and internal user existence checks. |
+| Gitea Service | `nodejs/services/gitea-service` | Store repository metadata, check Gitea bot access, sync Tomorrow projects, and create analysis jobs. |
 | AI Analysis Service | `cmd/ai-analysis-service` | Analyze code structure and orchestrate AI generation of 20 English-only questions. |
 | Question Service | `cmd/question-service` | Persist generated questions and provide exam-safe question payloads without answers. |
 | Exam Service | `cmd/exam-service` | Create Friday offline exams, accept submissions, grade answers, create pass records. |
-| Worker Service | `cmd/worker-service` | Consume long-running analysis jobs, update status, retry failures, dead-letter permanent failures. |
+| Worker Service | `nodejs/services/worker-service` | Consume long-running analysis jobs, update status, retry failures, and dead-letter permanent failures. |
 
-`auth-service` uses Tomorrow School signin for credential verification and then issues internal JWTs for the rest of the platform.
+`auth-service` uses Tomorrow School signin for credential verification and then issues internal JWTs for the rest of the platform. `user-service` owns the `users` table and the internal user/profile API.
 
 ## How to run services
 
-Run commands from the `backend` directory. Each service exposes a `/healthz` endpoint and gets its default port from `pkg/sdk/config`.
+Run Go services from the `backend` directory. The gateway and Node services live in `backend/nodejs` and keep their own entrypoints.
 
 ```bash
-cd backend
+cd backend/nodejs
 
-go run ./cmd/api-gateway
+pnpm dev:gateway
 # default :8080
 
-go run ./cmd/auth-service
-# default :8081
+pnpm dev:auth
+# default :3005
 
-go run ./cmd/gitea-reader-service
+pnpm dev:user
+# default :3002
+
+pnpm dev:gitea
 # default :8082
 
 go run ./cmd/ai-analysis-service
@@ -57,13 +61,13 @@ go run ./cmd/question-service
 go run ./cmd/exam-service
 # default :8085
 
-go run ./cmd/worker-service
-# default :8087
+pnpm dev:worker
+# default :3007
 ```
 
-Service-specific environment variables can override shared values by prefixing the variable with the service name in uppercase snake case. For example, `API_GATEWAY_HTTP_PORT=9000` overrides `HTTP_PORT` only for `api-gateway`.
+The Node gateway uses `API_GATEWAY_PORT`, `AUTH_SERVICE_BASE_URL`, `GITEA_READER_SERVICE_BASE_URL`, `QUESTION_SERVICE_BASE_URL`, and `EXAM_SERVICE_BASE_URL` to route traffic to internal services.
 
-When `APP_ENV=development`, `auth-service` also ensures a local seed account exists. The defaults come from `.env`:
+When `APP_ENV=development`, the Node `auth-service` ensures a local seed account exists through `user-service`. The defaults come from `.env`:
 
 - `DEV_SEED_USER_NAME=Student User`
 - `DEV_SEED_USER_EMAIL=student@example.com`

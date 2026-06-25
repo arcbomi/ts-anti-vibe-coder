@@ -1,0 +1,102 @@
+version: "3.9"
+
+services:
+  # HTTP microservices and workers in the backend/nodejs workspace.
+  api-gateway:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/api-gateway/src/server.ts"]
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+
+  gitea-service:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/gitea-service/src/server.ts"]
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    ports:
+      - "8082:8082"
+
+  exam-service:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/exam-service/src/server.ts"]
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    ports:
+      - "3006:3006"
+
+  tomorrow-service:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/tomorrow-service/src/server.ts"]
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    ports:
+      - "3001:3001"
+
+  auth-service:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/auth-service/src/server.ts"]
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    ports:
+      - "3005:3005"
+
+  user-service:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/user-service/src/server.ts"]
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    ports:
+      - "3002:3002"
+
+  notification-service:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/notification-service/src/server.ts"]
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    ports:
+      - "3003:3003"
+
+  relationship-service:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/relationship-service/src/server.ts"]
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    ports:
+      - "3004:3004"
+
+  worker-service:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["./node_modules/.bin/tsx", "--env-file=.env", "services/worker-service/src/server.ts"]
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    ports:
+      - "3007:3007"

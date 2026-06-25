@@ -1,10 +1,10 @@
 import path from 'node:path'
 
-import react from '@vitejs/plugin-react'
+import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [vue()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    include: ['tests/integration/**/*.integration.test.tsx'],
+    include: ['tests/integration/**/*.integration.test.ts'],
     setupFiles: ['tests/setup.ts'],
     restoreMocks: true,
     clearMocks: true,

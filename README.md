@@ -35,23 +35,28 @@ The platform does not ask users to upload code manually and does not ask for a p
 
 ## Backend Architecture
 
-The backend uses **Go microservices**. Each service is a separate Go program under `backend/cmd`:
+The backend uses **Go services plus a small Node microservice workspace**:
 
 ```txt
 backend/
   cmd/
     api-gateway/
-    auth-service/
-    gitea-reader-service/
     ai-analysis-service/
     question-service/
     exam-service/
     worker-service/
+  nodejs/
+    services/
+      auth-service/
+      user-service/
+      gitea-service/
+      tomorrow-service/
+      worker-service/
 ```
 
 All backend services must share common infrastructure through the centralized SDK under `backend/pkg/sdk`. Shared logic such as configuration, logging, database access, queues, middleware, HTTP clients, Gitea client code, and AI client code must live in the SDK instead of being duplicated inside services.
 
-The auth service should later support Tomorrow School account login or Tomorrow School SSO.
+`auth-service` handles credential verification and JWTs. `user-service` owns user records, profile fields, and internal user lookup.
 
 ## Frontend Architecture
 
@@ -114,7 +119,8 @@ This command calls `./scripts/dev-up.sh`, creates `.env` from `.env.example` whe
 | Component | URL |
 | --- | --- |
 | API Gateway | <http://localhost:8080/healthz> |
-| Auth Service | <http://localhost:8081/healthz> |
+| Auth Service | <http://localhost:3005/health> |
+| User Service | <http://localhost:3002/health> |
 | Gitea Reader Service | <http://localhost:8082/healthz> |
 | AI Analysis Service | <http://localhost:8083/healthz> |
 | Question Service | <http://localhost:8084/healthz> |
@@ -158,6 +164,7 @@ You can also run any backend service by name:
 
 ```bash
 ./scripts/run-backend.sh auth-service
+./scripts/run-backend.sh user-service
 ./scripts/run-backend.sh worker-service
 ```
 
@@ -199,4 +206,4 @@ Production-style images can be built from the service Dockerfiles:
 make docker-build
 ```
 
-The backend image includes compiled binaries for every service plus the migration binary. Override the backend container entrypoint or command to run the desired binary, for example `/usr/local/bin/auth-service`, `/usr/local/bin/worker-service`, or `/usr/local/bin/migrate up`. The frontend image serves the Vite production build through nginx.
+The backend image includes compiled binaries for the Go services plus the migration binary. The extracted Node auth and user services run from `backend/nodejs/services`. The frontend image serves the Vite production build through nginx.

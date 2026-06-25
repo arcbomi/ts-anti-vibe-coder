@@ -4,7 +4,7 @@
 
 The React frontend communicates with the Go backend through the API Gateway. Internal microservices should not be called directly from the browser.
 
-All endpoints return a standard response wrapper.
+All endpoints return a standard response wrapper. `auth-service` keeps the public `/auth/*` endpoints, and it now calls `user-service` internally for user/profile persistence and lookup.
 
 ## Standard Success Response
 

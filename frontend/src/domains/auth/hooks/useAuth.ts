@@ -1,17 +1,18 @@
-import { useCallback, useSyncExternalStore } from 'react'
+import { computed } from 'vue'
 
 import { authApi } from '@/domains/auth/api/authApi'
 import { authStore } from '@/domains/auth/store/authStore'
 import type { LoginRequest } from '@/domains/auth/types/auth.types'
+import { useVanillaStore } from '@/shared/state/useVanillaStore'
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Something went wrong. Please try again.'
 }
 
 export function useAuth() {
-  const state = useSyncExternalStore(authStore.subscribe, authStore.getState, authStore.getInitialState)
+  const state = useVanillaStore(authStore)
 
-  const login = useCallback(async (request: LoginRequest) => {
+  const login = async (request: LoginRequest) => {
     const store = authStore.getState()
     store.setLoading(true)
     store.setError(null)
@@ -27,9 +28,9 @@ export function useAuth() {
     } finally {
       authStore.getState().setLoading(false)
     }
-  }, [])
+  }
 
-  const logout = useCallback(async () => {
+  const logout = async () => {
     authStore.getState().setLoading(true)
     authStore.getState().setError(null)
 
@@ -40,9 +41,9 @@ export function useAuth() {
     } finally {
       authStore.getState().clearAuth()
     }
-  }, [])
+  }
 
-  const loadCurrentUser = useCallback(async () => {
+  const loadCurrentUser = async () => {
     authStore.getState().setLoading(true)
     authStore.getState().setError(null)
 
@@ -57,14 +58,14 @@ export function useAuth() {
     } finally {
       authStore.getState().setLoading(false)
     }
-  }, [])
+  }
 
   return {
-    user: state.user,
-    token: state.token,
-    isAuthenticated: Boolean(state.token && state.user),
-    isLoading: state.isLoading,
-    error: state.error,
+    user: computed(() => state.value.user),
+    token: computed(() => state.value.token),
+    isAuthenticated: computed(() => Boolean(state.value.token && state.value.user)),
+    isLoading: computed(() => state.value.isLoading),
+    error: computed(() => state.value.error),
     login,
     logout,
     loadCurrentUser,

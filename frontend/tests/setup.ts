@@ -1,5 +1,6 @@
 import { afterEach } from 'vitest'
-import { cleanup } from '@testing-library/react'
+
+import { cleanupTestApp } from './support/integrationHarness'
 
 function createStorageMock() {
   const store = new Map<string, string>()
@@ -30,5 +31,5 @@ if (typeof window !== 'undefined') {
 }
 
 afterEach(() => {
-  cleanup()
+  cleanupTestApp()
 })
