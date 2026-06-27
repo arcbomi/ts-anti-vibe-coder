@@ -1,8 +1,8 @@
-import { createLogger, createServiceApp } from "../../../packages/microservice-sdk/src/index.js";
+import { createFastifyApp, createLogger } from "@backend/microservice-sdk";
 import { loadGiteaServiceConfig } from "./config/env.js";
 import { GiteaController } from "./controllers/giteaController.js";
 import { registerErrorHandler } from "./middlewares/errorHandler.js";
-import { requireBearerAuth } from "./middlewares/auth.js";
+import { requireGatewayAuth } from "./middlewares/auth.js";
 import { PostgresGiteaRepository } from "./repositories/giteaRepository.js";
 import { PostgresTomorrowConnectionRepository } from "./repositories/tomorrowConnectionRepository.js";
 import { registerGiteaServiceRoutes } from "./routes/index.js";
@@ -12,11 +12,10 @@ import { GiteaService } from "./services/giteaService.js";
 import { TomorrowProjectDiscoveryClient } from "./services/tomorrowProjectDiscoveryClient.js";
 import type { GiteaServiceApp } from "./types/service.js";
 import { FileFilter } from "./utils/fileFilter.js";
-import { JwtValidator } from "./utils/jwt.js";
 
 export async function buildGiteaService(): Promise<GiteaServiceApp> {
   const config = loadGiteaServiceConfig();
-  const logger = createLogger(config.serviceName);
+  const logger = createLogger({ serviceName: config.serviceName });
 
   const repositoryStore = new PostgresGiteaRepository(config.databaseUrl);
   await repositoryStore.ensureSchema();
@@ -37,18 +36,17 @@ export async function buildGiteaService(): Promise<GiteaServiceApp> {
     logger
   });
   const controller = new GiteaController(service);
-  const jwtValidator = new JwtValidator(config.jwtSecret);
 
-  const app = createServiceApp({
+  const app = createFastifyApp({
     serviceName: config.serviceName,
     logger,
     registerRoutes(fastify) {
       registerGiteaServiceRoutes(fastify, {
         controller,
-        requireAuth: requireBearerAuth(jwtValidator)
+        requireAuth: requireGatewayAuth()
       });
     },
-    setErrorHandler: registerErrorHandler
+    registerErrorHandler
   }) as unknown as GiteaServiceApp;
 
   app.decorate("config", config);

@@ -1,4 +1,4 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import type { UpdateUserProfileRequest, UserWriteRequest } from "../types/user.js";
 
 function ensureObject(body: unknown) {

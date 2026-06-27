@@ -1,4 +1,4 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import { QUESTION_COUNT, QUESTION_OPTION_KEYS } from "../models/question.js";
 import type { CreateExamRequest, PrepareSucceededProjectRequest, SubmitExamRequest } from "../models/exam.js";
 import { isUuid } from "./questionValidation.js";

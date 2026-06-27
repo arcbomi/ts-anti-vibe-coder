@@ -1,4 +1,4 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import { ERROR_CODE, type TomorrowProject } from "../models/gitea.js";
 import type { TomorrowProjectDiscoveryClient as TomorrowProjectDiscoveryClientContract } from "../types/service.js";
 

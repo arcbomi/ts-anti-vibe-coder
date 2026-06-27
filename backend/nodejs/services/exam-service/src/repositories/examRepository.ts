@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import type {
   ExamRecord,
   PreparationJobRecord,

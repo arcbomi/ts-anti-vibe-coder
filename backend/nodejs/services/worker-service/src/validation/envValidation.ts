@@ -1,4 +1,4 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 
 export function readRequiredEnv(name: string): string {
   const value = process.env[name];

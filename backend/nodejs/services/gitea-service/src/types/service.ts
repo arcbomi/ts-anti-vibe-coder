@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { AnalysisJobRecord, GiteaRepositoryMetadata, GiteaTreeNode, RepositoryRecord, SafeRepositorySnapshot, TomorrowConnection, TomorrowProject } from "../models/gitea.js";
 
 export type GiteaServiceConfig = {
@@ -30,14 +30,14 @@ export type AuthenticatedUser = {
   userId: string;
 };
 
-export type AuthenticatedRequest = {
-  headers: Record<string, unknown>;
-  userContext?: AuthenticatedUser;
+export type AuthenticatedRequest = FastifyRequest & {
+  auth?: AuthenticatedUser;
 };
 
 export type GiteaServiceApp = FastifyInstance & {
   config: GiteaServiceConfig;
   serviceLogger: {
+    debug(message: string, metadata?: unknown): void;
     info(message: string, metadata?: unknown): void;
     warn(message: string, metadata?: unknown): void;
     error(message: string, metadata?: unknown): void;

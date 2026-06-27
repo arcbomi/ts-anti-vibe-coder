@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { createLogger, createServiceApp } from "../../../packages/microservice-sdk/src/index.js";
+import { createFastifyApp, createLogger } from "@backend/microservice-sdk";
 import { loadWorkerServiceConfig } from "./config/env.ts";
 import { WorkerController } from "./controllers/workerController.ts";
 import { registerErrorHandler } from "./middlewares/errorHandler.ts";
@@ -14,7 +14,7 @@ import type { WorkerServiceApp } from "./types/service.ts";
 
 export async function buildWorkerService(): Promise<WorkerServiceApp> {
   const config = loadWorkerServiceConfig();
-  const logger = createLogger(config.serviceName);
+  const logger = createLogger({ serviceName: config.serviceName });
   const analysisJobRepository = new AnalysisJobRepository(config.databaseUrl);
   await analysisJobRepository.connect();
   await analysisJobRepository.ensureSchema();
@@ -40,13 +40,13 @@ export async function buildWorkerService(): Promise<WorkerServiceApp> {
   });
   const workerController = new WorkerController(workerRuntimeService);
 
-  const app = createServiceApp({
+  const app = createFastifyApp({
     serviceName: config.serviceName,
     logger,
     registerRoutes(fastify: FastifyInstance) {
       registerWorkerServiceRoutes(fastify, { workerController });
     },
-    setErrorHandler: registerErrorHandler
+    registerErrorHandler
   }) as unknown as WorkerServiceApp;
 
   app.decorate("config", config);

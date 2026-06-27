@@ -1,4 +1,4 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import { ERROR_CODE, type GiteaRepositoryMetadata, type GiteaTreeNode } from "../models/gitea.js";
 import { parseRepositoryParts } from "../utils/repositoryUrl.js";
 import type { GiteaApiClient as GiteaApiClientContract } from "../types/service.js";

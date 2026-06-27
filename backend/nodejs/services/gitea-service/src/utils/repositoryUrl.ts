@@ -1,5 +1,5 @@
 import path from "node:path";
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import { ERROR_CODE, type NormalizedRepository } from "../models/gitea.js";
 
 export function normalizeRepositoryUrl(raw: string, allowedBaseUrl: string): NormalizedRepository {

@@ -16,7 +16,7 @@
     "dev:worker": "tsx --env-file=.env services/worker-service/src/server.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:workspace": "pnpm -r --if-present run typecheck",
-    "test": "node --import ./node_modules/tsx/dist/loader.mjs --test services/*/test/**/*.test.ts"
+    "test": "node --import ./node_modules/tsx/dist/loader.mjs --test packages/*/test/**/*.test.ts services/*/test/**/*.test.ts services/*/src/**/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -14,7 +14,6 @@
   "include": [
     "./packages/**/*.ts",
     "./services/*/src/**/*.ts",
-    "./services/*/test/**/*.ts",
-    "./services/shared/**/*.ts"
+    "./services/*/test/**/*.ts"
   ]
 }

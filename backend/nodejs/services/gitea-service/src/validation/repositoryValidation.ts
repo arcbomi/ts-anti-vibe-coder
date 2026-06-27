@@ -1,4 +1,4 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import { ERROR_CODE } from "../models/gitea.js";
 
 export function validateCreateRepositoryInput(body: { gitea_repo_url?: string } | null | undefined) {

@@ -3,7 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ./tsconfig.json",
+    "test": "node --import ../../node_modules/tsx/dist/loader.mjs --test ./test/**/*.test.ts"
+  },
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "fastify": "^4.28.1",
+    "kafkajs": "^2.2.4"
   }
 }

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { createLogger, createServiceApp } from "../../../packages/microservice-sdk/src/index.js";
+import { createFastifyApp, createLogger } from "@backend/microservice-sdk";
 import { loadExamServiceConfig } from "./config/env.js";
 import { ExamController } from "./controllers/examController.js";
 import { QuestionController } from "./controllers/questionController.js";
@@ -18,7 +18,7 @@ export type ExamServiceApp = FastifyInstance & {
 
 export function buildExamService(): ExamServiceApp {
   const config = loadExamServiceConfig();
-  const logger = createLogger(config.serviceName);
+  const logger = createLogger({ serviceName: config.serviceName });
   const store = createExamServiceStore();
   const questionRepository = new QuestionRepository(store);
   const examRepository = new ExamRepository(store);
@@ -32,13 +32,13 @@ export function buildExamService(): ExamServiceApp {
   const questionController = new QuestionController(questionService);
   const examController = new ExamController(examService);
 
-  const app = createServiceApp({
+  const app = createFastifyApp({
     serviceName: config.serviceName,
     logger,
     registerRoutes(fastify) {
       registerExamServiceRoutes(fastify, { config, examController, questionController });
     },
-    setErrorHandler: registerErrorHandler
+    registerErrorHandler
   }) as unknown as ExamServiceApp;
 
   app.decorate("config", config);

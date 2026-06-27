@@ -1,4 +1,4 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import { buildUserRecord, toPublicUser } from "../models/user.js";
 import type { UpdateUserProfileRequest, UserRecord, UserRecordEnvelope, UserRepository, UserWriteRequest } from "../types/user.js";
 

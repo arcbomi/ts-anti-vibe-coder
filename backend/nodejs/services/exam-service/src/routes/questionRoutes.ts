@@ -36,7 +36,7 @@ export function registerQuestionRoutes(
     preHandler: requireUser
   }, async (request, reply) =>
     questionController.getQuestionsByAnalysisJob(
-      request as FastifyRequest<{ Params: { analysisJobId: string } }> & { userContext: { userId: string } },
+      request as FastifyRequest<{ Params: { analysisJobId: string } }> & { auth: { userId: string } },
       reply
     )
   );
@@ -45,7 +45,7 @@ export function registerQuestionRoutes(
     preHandler: requireUser
   }, async (request, reply) =>
     questionController.getExamQuestions(
-      request as FastifyRequest<{ Params: { examId: string } }> & { userContext: { userId: string } },
+      request as FastifyRequest<{ Params: { examId: string } }> & { auth: { userId: string } },
       reply
     )
   );

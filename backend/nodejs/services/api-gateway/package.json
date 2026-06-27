@@ -3,14 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "main": "./src/server.ts",
+  "main": "./dist/server.js",
   "scripts": {
-    "dev": "tsx --env-file=../../.env ./src/server.ts",
-    "typecheck": "tsc --noEmit -p ../../tsconfig.json",
-    "test": "node --import ../../node_modules/tsx/dist/loader.mjs --test ./test/**/*.test.ts"
+    "dev": "tsx --env-file=../../.env src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --import ../../node_modules/tsx/dist/loader.mjs --test src/**/*.test.ts"
   },
   "dependencies": {
     "@backend/microservice-sdk": "workspace:*",
     "fastify": "^4.28.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   }
 }

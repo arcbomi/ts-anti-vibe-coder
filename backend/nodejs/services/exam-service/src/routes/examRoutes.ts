@@ -26,14 +26,14 @@ export function registerExamRoutes(
   app.get("/api/v1/succeeded-projects", {
     preHandler: requireUser
   }, async (request, reply) =>
-    examController.listSucceededProjects(request as FastifyRequest & { userContext: { userId: string } }, reply)
+    examController.listSucceededProjects(request as FastifyRequest & { auth: { userId: string } }, reply)
   );
 
   app.post("/api/v1/succeeded-projects/:slug/prepare", {
     preHandler: requireUser
   }, async (request, reply) =>
     examController.startSucceededProjectPreparation(
-      request as FastifyRequest<{ Params: { slug: string } }> & { userContext: { userId: string } },
+      request as FastifyRequest<{ Params: { slug: string } }> & { auth: { userId: string } },
       reply
     )
   );
@@ -42,7 +42,7 @@ export function registerExamRoutes(
     preHandler: requireUser
   }, async (request, reply) =>
     examController.createExam(
-      request as FastifyRequest<{ Body: CreateExamRequest }> & { userContext: { userId: string } },
+      request as FastifyRequest<{ Body: CreateExamRequest }> & { auth: { userId: string } },
       reply
     )
   );
@@ -51,7 +51,7 @@ export function registerExamRoutes(
     preHandler: requireUser
   }, async (request, reply) =>
     examController.getExam(
-      request as FastifyRequest<{ Params: { id: string } }> & { userContext: { userId: string } },
+      request as FastifyRequest<{ Params: { id: string } }> & { auth: { userId: string } },
       reply
     )
   );
@@ -60,9 +60,7 @@ export function registerExamRoutes(
     preHandler: requireUser
   }, async (request, reply) =>
     examController.submitExam(
-      request as FastifyRequest<{ Params: { id: string }; Body: SubmitExamRequest }> & {
-        userContext: { userId: string };
-      },
+      request as FastifyRequest<{ Params: { id: string }; Body: SubmitExamRequest }> & { auth: { userId: string } },
       reply
     )
   );
@@ -71,7 +69,7 @@ export function registerExamRoutes(
     preHandler: requireUser
   }, async (request, reply) =>
     examController.getResult(
-      request as FastifyRequest<{ Params: { id: string } }> & { userContext: { userId: string } },
+      request as FastifyRequest<{ Params: { id: string } }> & { auth: { userId: string } },
       reply
     )
   );

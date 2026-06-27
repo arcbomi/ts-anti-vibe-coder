@@ -27,6 +27,38 @@ services:
       timeout: 5s
       retries: 20
 
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.1.9
+    command:
+      [
+        "redpanda",
+        "start",
+        "--overprovisioned",
+        "--smp",
+        "1",
+        "--memory",
+        "1G",
+        "--reserve-memory",
+        "0M",
+        "--node-id",
+        "0",
+        "--check=false",
+        "--kafka-addr",
+        "0.0.0.0:9092",
+        "--advertise-kafka-addr",
+        "redpanda:9092"
+      ]
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster info --brokers localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
 volumes:
   postgres_data:
   redis_data:
+  redpanda_data:

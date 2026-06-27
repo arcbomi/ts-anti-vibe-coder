@@ -1,4 +1,4 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import type { GiteaServiceConfig } from "../types/service.js";
 import { parsePositiveInteger } from "../utils/strings.js";
 

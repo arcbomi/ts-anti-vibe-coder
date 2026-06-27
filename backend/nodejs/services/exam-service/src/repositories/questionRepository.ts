@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import { QUESTION_OPTION_KEYS, type ExamQuestionOptionRecord, type GeneratedQuestionRecord } from "../models/question.js";
 import type { ExamServiceStore } from "../types/service.js";
 

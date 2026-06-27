@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { sendSuccess } from "../../../../packages/microservice-sdk/src/index.js";
+import { sendSuccess } from "@backend/microservice-sdk";
 import type { SaveGeneratedQuestionsRequest } from "../models/question.js";
 import { QuestionService } from "../services/questionService.js";
 
@@ -15,20 +15,20 @@ export class QuestionController {
   }
 
   async getQuestionsByAnalysisJob(
-    request: FastifyRequest<{ Params: { analysisJobId: string } }> & { userContext: { userId: string } },
+    request: FastifyRequest<{ Params: { analysisJobId: string } }> & { auth: { userId: string } },
     reply: FastifyReply
   ) {
     return sendSuccess(
       reply,
-      this.questionService.getQuestionsByAnalysisJob(request.userContext.userId, request.params.analysisJobId)
+      this.questionService.getQuestionsByAnalysisJob(request.auth.userId, request.params.analysisJobId)
     );
   }
 
   async getExamQuestions(
-    request: FastifyRequest<{ Params: { examId: string } }> & { userContext: { userId: string } },
+    request: FastifyRequest<{ Params: { examId: string } }> & { auth: { userId: string } },
     reply: FastifyReply
   ) {
-    return sendSuccess(reply, this.questionService.getExamQuestions(request.userContext.userId, request.params.examId));
+    return sendSuccess(reply, this.questionService.getExamQuestions(request.auth.userId, request.params.examId));
   }
 
   async getAnswerKey(request: FastifyRequest<{ Params: { examId: string } }>, reply: FastifyReply) {

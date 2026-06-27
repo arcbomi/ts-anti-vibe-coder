@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { sendSuccess } from "../../../../packages/microservice-sdk/src/index.js";
+import { sendSuccess } from "@backend/microservice-sdk";
 import type { StatusService } from "../services/statusService.ts";
 
 export class StatusController {

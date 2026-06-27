@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { sendSuccess } from "../../../../packages/microservice-sdk/src/index.js";
+import { sendSuccess } from "@backend/microservice-sdk";
 import {
   validateExistsQuery,
   validateLookupQuery,

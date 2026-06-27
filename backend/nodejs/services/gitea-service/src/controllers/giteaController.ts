@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { sendSuccess } from "../../../../packages/microservice-sdk/src/index.js";
+import { sendSuccess } from "@backend/microservice-sdk";
 import type { AnalysisJobRecord, RepositoryRecord } from "../models/gitea.js";
 import { validateCreateRepositoryInput } from "../validation/repositoryValidation.js";
 import type { AuthenticatedRequest, GiteaDomainService } from "../types/service.js";
@@ -12,27 +12,27 @@ export class GiteaController {
   }
 
   async createRepository(request: FastifyRequest<{ Body: { gitea_repo_url?: string } }> & AuthenticatedRequest, reply: FastifyReply) {
-    const repository = await this.service.createRepository(request.userContext?.userId ?? "", validateCreateRepositoryInput(request.body));
+    const repository = await this.service.createRepository(request.auth?.userId ?? "", validateCreateRepositoryInput(request.body));
     return sendSuccess(reply, toRepositoryCreateResponse(repository));
   }
 
   async listRepositories(request: FastifyRequest & AuthenticatedRequest, reply: FastifyReply) {
-    const repositories = await this.service.listRepositories(request.userContext?.userId ?? "");
+    const repositories = await this.service.listRepositories(request.auth?.userId ?? "");
     return sendSuccess(reply, repositories.map(toRepositoryResponse));
   }
 
   async syncTomorrowProjects(request: FastifyRequest & AuthenticatedRequest, reply: FastifyReply) {
-    const repositories = await this.service.syncTomorrowProjects(request.userContext?.userId ?? "");
+    const repositories = await this.service.syncTomorrowProjects(request.auth?.userId ?? "");
     return sendSuccess(reply, repositories.map(toRepositoryResponse));
   }
 
   async getRepository(request: FastifyRequest<{ Params: { id: string } }> & AuthenticatedRequest, reply: FastifyReply) {
-    const repository = await this.service.getRepository(request.userContext?.userId ?? "", request.params.id);
+    const repository = await this.service.getRepository(request.auth?.userId ?? "", request.params.id);
     return sendSuccess(reply, toRepositoryResponse(repository));
   }
 
   async checkBotAccess(request: FastifyRequest<{ Params: { id: string } }> & AuthenticatedRequest, reply: FastifyReply) {
-    const repository = await this.service.checkBotAccess(request.userContext?.userId ?? "", request.params.id);
+    const repository = await this.service.checkBotAccess(request.auth?.userId ?? "", request.params.id);
     return sendSuccess(reply, {
       id: repository.id,
       repository_id: repository.id,
@@ -42,7 +42,7 @@ export class GiteaController {
   }
 
   async startAnalysis(request: FastifyRequest<{ Params: { id: string } }> & AuthenticatedRequest, reply: FastifyReply) {
-    const job = await this.service.startAnalysis(request.userContext?.userId ?? "", request.params.id);
+    const job = await this.service.startAnalysis(request.auth?.userId ?? "", request.params.id);
     return sendSuccess(reply, {
       id: job.id,
       analysis_job_id: job.id,
@@ -51,7 +51,7 @@ export class GiteaController {
   }
 
   async getAnalysisJob(request: FastifyRequest<{ Params: { id: string } }> & AuthenticatedRequest, reply: FastifyReply) {
-    const job = await this.service.getAnalysisJob(request.userContext?.userId ?? "", request.params.id);
+    const job = await this.service.getAnalysisJob(request.auth?.userId ?? "", request.params.id);
     return sendSuccess(reply, toAnalysisJobResponse(job));
   }
 }

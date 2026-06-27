@@ -1,4 +1,4 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 
 export function validatePort(rawValue: string, fieldName: string): number {
   const port = Number(rawValue);

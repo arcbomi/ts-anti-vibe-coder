@@ -1,4 +1,4 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import type { UserServiceConfig } from "../types/service.js";
 
 export async function requireInternalToken(

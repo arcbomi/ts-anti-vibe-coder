@@ -1,17 +1,14 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError, attachInternalAuthContext } from "@backend/microservice-sdk";
 import type { ExamServiceConfig } from "../types/service.js";
 
-export async function requireUser(request: { headers: Record<string, unknown>; userContext?: { userId: string } }) {
-  const header = request.headers["x-user-id"];
-  const userId = typeof header === "string" ? header.trim() : "";
-  if (!userId) {
+export async function requireUser(request: Parameters<typeof attachInternalAuthContext>[0]) {
+  await attachInternalAuthContext(request);
+  if (!request.auth?.userId) {
     throw new AppError("Authentication is required.", {
       statusCode: 401,
       code: "UNAUTHORIZED"
     });
   }
-
-  request.userContext = { userId };
 }
 
 export async function requireInternalToken(

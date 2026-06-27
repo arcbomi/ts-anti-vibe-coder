@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import { ANALYSIS_JOB_STATUS, BOT_ACCESS_STATUS, ERROR_CODE, type AnalysisJobRecord, type RepositoryRecord, type SafeRepositorySnapshot } from "../models/gitea.js";
 import { normalizeRepositoryUrl } from "../utils/repositoryUrl.js";
 import { firstNonEmpty } from "../utils/strings.js";

@@ -1,31 +1,76 @@
 import type { FastifyInstance } from "fastify";
-import { createLogger, createServiceApp } from "../../../packages/microservice-sdk/src/index.js";
-import { loadAuthServiceConfig } from "./config/env.js";
-import { buildAuthDomainModule } from "./domain/auth/module.js";
-import { registerErrorHandler } from "./middlewares/errorHandler.js";
-import { registerAuthServiceRoutes } from "./routes/index.js";
-import type { AuthServiceConfig } from "./shared/contracts/auth.js";
+import {
+  attachInternalAuthContext,
+  createEventBus,
+  createFastifyApp,
+  createLogger,
+  createTomorrowSchoolAuthClient,
+  createUserServiceClient,
+  requireInternalUserId,
+  loadConfig,
+  sendSuccess
+} from "@backend/microservice-sdk";
+import {
+  createAccessTokenIssuer,
+  createLoginUser,
+  createLogoutUser,
+  createReadCurrentUser,
+  registerLoginUserRoute,
+  registerLogoutUserRoute,
+  registerReadCurrentUserRoute
+} from "./domains/auth/index.js";
 
 export type AuthServiceApp = FastifyInstance & {
-  config: AuthServiceConfig;
-  serviceLogger: ReturnType<typeof createLogger>;
+  config: ReturnType<typeof loadConfig>;
 };
 
 export async function buildAuthService(): Promise<AuthServiceApp> {
-  const config = loadAuthServiceConfig();
-  const logger = createLogger(config.serviceName);
-  const { authController, authService } = buildAuthDomainModule({ config, logger });
+  const config = loadConfig("auth-service");
+  const logger = createLogger(config);
+  const tomorrowSchoolAuth = createTomorrowSchoolAuthClient(config);
+  const userService = createUserServiceClient(config);
+  const accessTokenIssuer = createAccessTokenIssuer(config);
+  const eventBus = createEventBus(config);
 
-  const app = createServiceApp({
-    serviceName: config.serviceName,
-    logger,
-    registerRoutes(fastify) {
-      registerAuthServiceRoutes(fastify, { authController, authService });
-    },
-    setErrorHandler: registerErrorHandler
+  const loginUser = createLoginUser({
+    tomorrowSchoolAuth,
+    userService,
+    accessTokenIssuer,
+    eventBus,
+    logger
   });
+  const logoutUser = createLogoutUser({
+    eventBus
+  });
+  const readCurrentUser = createReadCurrentUser({
+    userService
+  });
+
+  const app = createFastifyApp({
+    serviceName: config.serviceName,
+    appEnv: config.appEnv,
+    logger,
+    registerRoutes(fastify: FastifyInstance) {
+      registerLoginUserRoute(fastify, {
+        loginUser,
+        sendSuccess
+      });
+      registerLogoutUserRoute(fastify, {
+        logoutUser,
+        requireAuth: attachInternalAuthContext,
+        getCurrentUserId: requireInternalUserId,
+        sendSuccess
+      });
+      registerReadCurrentUserRoute(fastify, {
+        readCurrentUser,
+        requireAuth: attachInternalAuthContext,
+        getCurrentUserId: requireInternalUserId,
+        sendSuccess
+      });
+    }
+  }) as unknown as AuthServiceApp;
 
   app.decorate("config", config);
 
-  return app as unknown as AuthServiceApp;
+  return app;
 }

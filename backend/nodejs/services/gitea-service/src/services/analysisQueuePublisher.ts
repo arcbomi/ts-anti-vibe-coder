@@ -1,5 +1,5 @@
 import net from "node:net";
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import { ERROR_CODE } from "../models/gitea.js";
 import type { AnalysisQueuePublisher as AnalysisQueuePublisherContract } from "../types/service.js";
 

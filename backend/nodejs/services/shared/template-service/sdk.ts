@@ -1,9 +1,9 @@
 import {
+  createFastifyApp as createSdkFastifyApp,
   createLogger as createSdkLogger,
-  createServiceApp as createSdkServiceApp,
   isAppError as isSdkAppError,
   sendSuccess as sendSdkSuccess
-} from "../../../packages/microservice-sdk/src/index.js";
+} from "@backend/microservice-sdk";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { ServiceLogger } from "./types.ts";
 
@@ -20,11 +20,16 @@ interface AppErrorLike extends Error {
 }
 
 export function createLogger(serviceName: string): ServiceLogger {
-  return createSdkLogger(serviceName) as ServiceLogger;
+  return createSdkLogger({ serviceName }) as ServiceLogger;
 }
 
 export function createServiceApp(options: CreateServiceAppOptions): FastifyInstance {
-  return createSdkServiceApp(options) as FastifyInstance;
+  return createSdkFastifyApp({
+    serviceName: options.serviceName,
+    logger: options.logger,
+    registerRoutes: options.registerRoutes,
+    registerErrorHandler: options.setErrorHandler
+  }) as FastifyInstance;
 }
 
 export function sendSuccess<T>(reply: FastifyReply, payload: T, statusCode = 200) {

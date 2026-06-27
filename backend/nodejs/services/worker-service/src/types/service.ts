@@ -22,6 +22,7 @@ export interface WorkerServiceApp extends FastifyInstance {
   config: WorkerServiceConfig;
   serviceName: string;
   serviceLogger: {
+    debug(message: string, metadata?: unknown): void;
     info(message: string, metadata?: unknown): void;
     warn(message: string, metadata?: unknown): void;
     error(message: string, metadata?: unknown): void;

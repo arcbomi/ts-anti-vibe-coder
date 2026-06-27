@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { isAppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { isAppError } from "@backend/microservice-sdk";
 
 export function registerErrorHandler(app: FastifyInstance) {
   app.setErrorHandler((error, request, reply) => {

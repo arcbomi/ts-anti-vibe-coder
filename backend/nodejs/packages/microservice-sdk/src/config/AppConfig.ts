@@ -1,0 +1,21 @@
+export type AppConfig = {
+  serviceName: string;
+  appEnv: string;
+  port: number;
+  jwtSecret: string;
+  jwtAccessTokenTtl?: string;
+  kafkaBrokers: string[];
+  internalServiceToken?: string;
+  userServiceBaseUrl?: string;
+  userServiceTimeoutMs?: number;
+  tomorrowSchoolBaseUrl?: string;
+  tomorrowSchoolAuthEndpoint?: string;
+  tomorrowSchoolTimeoutMs?: number;
+  tomorrowSchoolReferrer?: string;
+  tomorrowSchoolXJwtToken?: string;
+  tomorrowSchoolSessionId?: string;
+  tomorrowSchoolGraphQlEndpoint?: string;
+  tomorrowSchoolGraphQlRole?: string;
+  tomorrowSchoolProfilePath?: string;
+  logLevel?: string;
+};

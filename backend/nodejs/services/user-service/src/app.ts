@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { createLogger, createServiceApp } from "../../../packages/microservice-sdk/src/index.js";
+import { createFastifyApp, createLogger } from "@backend/microservice-sdk";
 import { loadUserServiceConfig } from "./config/env.js";
 import { StatusController } from "./controllers/statusController.js";
 import { UserController } from "./controllers/userController.js";
@@ -13,7 +13,7 @@ import type { UserServiceApp } from "./types/service.js";
 
 export async function buildUserService(): Promise<UserServiceApp> {
   const config = loadUserServiceConfig();
-  const logger = createLogger(config.serviceName);
+  const logger = createLogger({ serviceName: config.serviceName });
   const statusRepository = new ServiceStatusRepository(config.serviceName, "user");
   const userRepository = buildUserRepository(config);
   await userRepository.ensureSchema();
@@ -22,13 +22,13 @@ export async function buildUserService(): Promise<UserServiceApp> {
   const statusController = new StatusController(statusService);
   const userController = new UserController({ userService });
 
-  const app = createServiceApp({
+  const app = createFastifyApp({
     serviceName: config.serviceName,
     logger,
     registerRoutes(fastify: FastifyInstance) {
       registerUserServiceRoutes(fastify, { statusController, userController, config });
     },
-    setErrorHandler: registerErrorHandler
+    registerErrorHandler
   }) as unknown as UserServiceApp;
 
   app.decorate("config", config);

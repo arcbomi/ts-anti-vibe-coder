@@ -1,6 +1,14 @@
-import { AppError } from "../../../../packages/microservice-sdk/src/index.js";
+import { AppError } from "@backend/microservice-sdk";
 import { Pool } from "pg";
 import type { GeneratedQuestion } from "../types/service.ts";
+
+type ConnectedPool = Pool & {
+  connect(): Promise<{
+    query<T = unknown>(queryText: string, values?: unknown[]): Promise<{ rows: T[]; rowCount: number }>;
+    release(): void;
+  }>;
+  end(): Promise<void>;
+};
 
 export class AnalysisJobRepository {
   private readonly pool: Pool;
@@ -10,12 +18,12 @@ export class AnalysisJobRepository {
   }
 
   async connect(): Promise<void> {
-    const client = await this.pool.connect();
+    const client = await (this.pool as ConnectedPool).connect();
     client.release();
   }
 
   async close(): Promise<void> {
-    await this.pool.end();
+    await (this.pool as ConnectedPool).end();
   }
 
   async ensureSchema(): Promise<void> {
@@ -97,7 +105,7 @@ export class AnalysisJobRepository {
   }
 
   async saveGeneratedQuestions(jobId: string, questions: GeneratedQuestion[]): Promise<void> {
-    const client = await this.pool.connect();
+    const client = await (this.pool as ConnectedPool).connect();
 
     try {
       await client.query("BEGIN");
