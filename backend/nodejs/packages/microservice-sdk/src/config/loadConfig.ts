@@ -27,6 +27,17 @@ function readString(value: string | undefined, fallback = "") {
   return String(value ?? fallback).trim();
 }
 
+function readFirstDefinedString(...values: Array<string | undefined>) {
+  for (const value of values) {
+    const normalized = readString(value);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
+}
+
 function requireEnv(name: string, fallback = "") {
   const value = readString(process.env[name], fallback);
   if (!value) {
@@ -69,6 +80,15 @@ function readTimeoutMs(value: string | undefined, fallbackSeconds: number) {
   return Math.floor(parsed * 1000);
 }
 
+function readPositiveInt(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
 function readKafkaBrokers(value: string | undefined) {
   const brokers = readString(value, DEFAULT_KAFKA_BROKERS)
     .split(",")
@@ -106,6 +126,8 @@ export function loadConfig(serviceName: string): AppConfig {
     internalServiceToken: readString(process.env.INTERNAL_SERVICE_TOKEN, "local-internal-token") || undefined,
     userServiceBaseUrl: readString(process.env.USER_SERVICE_URL, "http://localhost:3002") || undefined,
     userServiceTimeoutMs: readTimeoutMs(process.env.USER_SERVICE_TIMEOUT_SECONDS, 5),
+    tomorrowServiceBaseUrl: readString(process.env.TOMORROW_SERVICE_URL, "http://localhost:3001") || undefined,
+    tomorrowServiceTimeoutMs: readTimeoutMs(process.env.TOMORROW_SERVICE_TIMEOUT_SECONDS, 5),
     tomorrowSchoolBaseUrl: readString(process.env.TOMORROW_BASE_URL, DEFAULT_TOMORROW_BASE_URL) || undefined,
     tomorrowSchoolAuthEndpoint:
       readString(process.env.TOMORROW_SCHOOL_AUTH_ENDPOINT, DEFAULT_TOMORROW_AUTH_ENDPOINT) || undefined,
@@ -116,6 +138,10 @@ export function loadConfig(serviceName: string): AppConfig {
     tomorrowSchoolGraphQlEndpoint: readString(process.env.TOMORROW_SCHOOL_GRAPHQL_ENDPOINT) || undefined,
     tomorrowSchoolGraphQlRole: readString(process.env.TOMORROW_SCHOOL_GRAPHQL_ROLE, "user") || undefined,
     tomorrowSchoolProfilePath: readString(process.env.TOMORROW_PROFILE_PATH, DEFAULT_TOMORROW_PROFILE_PATH) || undefined,
+    mongodbUri: readFirstDefinedString(process.env.MONGODB_URI, process.env.MONGO_URI, process.env.MONGODB_URL) || undefined,
+    mongodbDatabase: readFirstDefinedString(process.env.MONGODB_DATABASE, process.env.MONGO_DATABASE, process.env.MONGODB_DB) || undefined,
+    redisUrl: readFirstDefinedString(process.env.REDIS_URL, process.env.QUEUE_URL) || undefined,
+    tomorrowJwtTtlSeconds: readPositiveInt(process.env.TOMORROW_JWT_TTL_SECONDS, 60 * 60 * 24),
     logLevel: readString(process.env.LOG_LEVEL, appEnv === "development" ? "debug" : "info") || undefined
   };
 }

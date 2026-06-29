@@ -1,10 +1,26 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
+import { BadRequestError } from "@backend/microservice-sdk";
 import { createGetTomorrowUserInformation } from "./getTomorrowUserInformation.js";
+
+test("getTomorrowUserInformation validates access token", async () => {
+  const usecase = createGetTomorrowUserInformation({
+    tomorrowUserClient: {
+      async getCurrentUser() {
+        throw new Error("not used");
+      }
+    }
+  });
+
+  await assert.rejects(() => usecase({ accessToken: "" }), (error: unknown) => {
+    assert.ok(error instanceof BadRequestError);
+    return true;
+  });
+});
 
 test("getTomorrowUserInformation returns current user information", async () => {
   const usecase = createGetTomorrowUserInformation({
-    tomorrowClient: {
+    tomorrowUserClient: {
       async getCurrentUser() {
         return {
           id: "42",

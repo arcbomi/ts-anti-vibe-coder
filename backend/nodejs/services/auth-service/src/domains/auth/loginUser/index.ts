@@ -4,3 +4,7 @@ export * from "./loginUser.input.js";
 export * from "./loginUser.output.js";
 export * from "./loginUser.policy.js";
 export * from "./loginUser.route.js";
+export * from "./shared/TomorrowServiceClient.js";
+export * from "./shared/TomorrowTokenStore.js";
+export * from "./shared/createTomorrowServiceClient.js";
+export * from "./shared/createTomorrowTokenStore.js";

@@ -1,10 +1,28 @@
-.PHONY: dev dev-down infra-up infra-down migrate backend-test test-integration smoke-test backend-run-api backend-run-auth backend-run-gitea backend-run-analysis backend-run-exam backend-run-scheduler backend-run-worker frontend-install frontend-dev frontend-build docker-build
+.PHONY: dev dev-auth dev-tomorrow dev-user dev-core dev-api dev-frontend dev-down infra-up infra-down migrate backend-test test-integration smoke-test backend-run-api backend-run-auth backend-run-gitea backend-run-analysis backend-run-exam backend-run-scheduler backend-run-worker frontend-install frontend-dev frontend-build docker-build
 
 dev:
 	./scripts/dev-up.sh
 
+dev-auth:
+	./scripts/dev-up.sh auth-service
+
+dev-tomorrow:
+	./scripts/dev-up.sh tomorrow-service
+
+dev-user:
+	./scripts/dev-up.sh user-service
+
+dev-core:
+	./scripts/dev-up.sh auth-service tomorrow-service user-service
+
+dev-api:
+	./scripts/dev-up.sh api-gateway auth-service tomorrow-service user-service
+
+dev-frontend:
+	./scripts/dev-up.sh frontend api-gateway auth-service tomorrow-service user-service
+
 dev-down:
-	./scripts/dev-down.sh
+	docker compose down
 
 infra-up:
 	docker compose -f docker-compose.infra.yml up -d

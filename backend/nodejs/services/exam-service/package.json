@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./src/server.ts",
   "scripts": {
-    "dev": "pnpm exec tsx --env-file=../../.env ./src/server.ts",
+    "dev": "pnpm exec tsx ./src/server.ts",
     "typecheck": "pnpm exec tsc --noEmit -p ../../tsconfig.json"
   },
   "dependencies": {

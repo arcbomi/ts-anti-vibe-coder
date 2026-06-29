@@ -1,6 +1,21 @@
 version: "3.9"
 
 services:
+  mongodb:
+    image: mongo:7
+    command: ["bash", "-lc", "exec mongod --quiet --bind_ip_all >/dev/null 2>&1"]
+    env_file:
+      - .env
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/27017'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   # HTTP microservices and workers in the backend/nodejs workspace.
   api-gateway:
     image: node:22-alpine
@@ -60,11 +75,14 @@ services:
   user-service:
     image: node:22-alpine
     working_dir: /app
-    command: ["sh", "-lc", "corepack enable && sh ./scripts/ensure-deps.sh services/user-service fastify pg @backend/microservice-sdk && pnpm dev:user"]
+    command: ["sh", "-lc", "corepack enable && sh ./scripts/ensure-deps.sh services/user-service fastify mongodb @backend/microservice-sdk && pnpm dev:user"]
     volumes:
       - ./:/app
     env_file:
       - .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
     ports:
       - "3002:3002"
 
@@ -100,3 +118,6 @@ services:
       - .env
     ports:
       - "3007:3007"
+
+volumes:
+  mongodb_data:

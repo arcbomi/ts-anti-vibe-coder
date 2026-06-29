@@ -8,6 +8,8 @@ export type AppConfig = {
   internalServiceToken?: string;
   userServiceBaseUrl?: string;
   userServiceTimeoutMs?: number;
+  tomorrowServiceBaseUrl?: string;
+  tomorrowServiceTimeoutMs?: number;
   tomorrowSchoolBaseUrl?: string;
   tomorrowSchoolAuthEndpoint?: string;
   tomorrowSchoolTimeoutMs?: number;
@@ -17,5 +19,9 @@ export type AppConfig = {
   tomorrowSchoolGraphQlEndpoint?: string;
   tomorrowSchoolGraphQlRole?: string;
   tomorrowSchoolProfilePath?: string;
+  mongodbUri?: string;
+  mongodbDatabase?: string;
+  redisUrl?: string;
+  tomorrowJwtTtlSeconds?: number;
   logLevel?: string;
 };

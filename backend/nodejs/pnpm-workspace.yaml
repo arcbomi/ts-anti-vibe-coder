@@ -3,3 +3,5 @@ packages:
   - "services/*"
   # Shared libraries used across services live under packages/<package-name>.
   - "packages/*"
+allowBuilds:
+  esbuild: set this to true or false

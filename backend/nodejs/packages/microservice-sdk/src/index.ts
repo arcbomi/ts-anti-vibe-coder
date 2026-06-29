@@ -6,6 +6,5 @@ export * from "./gatewayAuth/index.js";
 export * from "./internalAuth/index.js";
 export * from "./clients/httpClient/index.js";
 export * from "./clients/userService/index.js";
-export * from "./clients/tomorrowSchoolAuth/index.js";
 export * from "./logger/index.js";
 export * from "./testing/index.js";

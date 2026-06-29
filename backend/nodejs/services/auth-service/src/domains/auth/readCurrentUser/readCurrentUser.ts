@@ -7,7 +7,7 @@ export function createReadCurrentUser(dependencies: {
   userService: UserServiceClient;
 }) {
   return async function readCurrentUser(input: ReadCurrentUserInput): Promise<ReadCurrentUserOutput> {
-    const user = await dependencies.userService.getCurrentUser({
+    const user = await dependencies.userService.getUserById({
       userId: input.userId
     });
 
@@ -17,7 +17,7 @@ export function createReadCurrentUser(dependencies: {
   };
 }
 
-function toCurrentUser(user: Awaited<ReturnType<UserServiceClient["getCurrentUser"]>>): CurrentUser {
+function toCurrentUser(user: Awaited<ReturnType<UserServiceClient["getUserById"]>>): CurrentUser {
   return {
     id: user.id,
     login: user.login,

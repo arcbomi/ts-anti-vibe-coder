@@ -4,6 +4,30 @@ import { toHttpCurrentUser } from "../model/CurrentUser.js";
 import type { ReadCurrentUserInput } from "./readCurrentUser.input.js";
 import type { ReadCurrentUserOutput } from "./readCurrentUser.output.js";
 
+const currentUserSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "name"],
+  properties: {
+    id: { type: "string" },
+    login: { type: "string" },
+    email: { type: "string" },
+    name: { type: "string" },
+    full_name: { type: "string" },
+    avatar_url: { type: "string" }
+  }
+} as const;
+
+const successResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["success", "data"],
+  properties: {
+    success: { type: "boolean", enum: [true] },
+    data: currentUserSchema
+  }
+} as const;
+
 export function registerReadCurrentUserRoute(
   app: FastifyInstance,
   dependencies: {
@@ -16,7 +40,16 @@ export function registerReadCurrentUserRoute(
   app.get(
     "/auth/me",
     {
-      preHandler: dependencies.requireAuth
+      preHandler: dependencies.requireAuth,
+      schema: {
+        tags: ["Auth"],
+        summary: "Read current user",
+        description: "Returns the current authenticated user profile.",
+        security: [{ BearerAuth: [] }],
+        response: {
+          200: successResponseSchema
+        }
+      }
     },
     async (request, reply) => {
       const result = await dependencies.readCurrentUser({

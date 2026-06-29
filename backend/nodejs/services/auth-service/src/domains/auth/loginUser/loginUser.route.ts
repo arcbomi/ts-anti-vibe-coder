@@ -4,6 +4,38 @@ import { toHttpCurrentUser } from "../model/CurrentUser.js";
 import type { LoginUserInput } from "./loginUser.input.js";
 import type { LoginUserOutput } from "./loginUser.output.js";
 
+const currentUserSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "name"],
+  properties: {
+    id: { type: "string" },
+    login: { type: "string" },
+    email: { type: "string" },
+    name: { type: "string" },
+    full_name: { type: "string" },
+    avatar_url: { type: "string" }
+  }
+} as const;
+
+const successResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["success", "data"],
+  properties: {
+    success: { type: "boolean", enum: [true] },
+    data: {
+      type: "object",
+      additionalProperties: false,
+      required: ["access_token", "user"],
+      properties: {
+        access_token: { type: "string" },
+        user: currentUserSchema
+      }
+    }
+  }
+} as const;
+
 export function registerLoginUserRoute(
   app: FastifyInstance,
   dependencies: {
@@ -11,20 +43,59 @@ export function registerLoginUserRoute(
     sendSuccess?: typeof sendSuccess;
   }
 ) {
-  app.post("/auth/login", async (request, reply) => {
-    const input = parseLoginUserRequest(request.body);
-    const result = await dependencies.loginUser(input);
-    const payload = {
-      access_token: result.accessToken,
-      user: toHttpCurrentUser(result.user)
-    };
+  app.post(
+    "/auth/login",
+    {
+      schema: {
+        tags: ["Auth"],
+        summary: "Sign in",
+        description: "Authenticates a user and issues an access token.",
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["password"],
+          anyOf: [
+            {
+              required: ["credential"]
+            },
+            {
+              required: ["login"]
+            }
+          ],
+          properties: {
+            credential: {
+              type: "string",
+              description: "User login, username, or email."
+            },
+            login: {
+              type: "string",
+              description: "User login, username, or email."
+            },
+            password: {
+              type: "string"
+            }
+          }
+        },
+        response: {
+          200: successResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const input = parseLoginUserRequest(request.body);
+      const result = await dependencies.loginUser(input);
+      const payload = {
+        access_token: result.accessToken,
+        user: toHttpCurrentUser(result.user)
+      };
 
-    if (dependencies.sendSuccess) {
-      return dependencies.sendSuccess(reply, payload);
+      if (dependencies.sendSuccess) {
+        return dependencies.sendSuccess(reply, payload);
+      }
+
+      return reply.send(payload);
     }
-
-    return reply.send(payload);
-  });
+  );
 }
 
 function parseLoginUserRequest(body: unknown): LoginUserInput {

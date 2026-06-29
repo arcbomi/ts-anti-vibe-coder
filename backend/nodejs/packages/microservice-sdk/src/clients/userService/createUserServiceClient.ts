@@ -1,14 +1,25 @@
-import { randomUUID } from "node:crypto";
 import type { AppConfig } from "../../config/AppConfig.js";
 import { AppError } from "../../errors/AppError.js";
 import { createHttpClient } from "../httpClient/createHttpClient.js";
 import type { UserServiceClient } from "./UserServiceClient.js";
 
-type PublicUserResponse = {
+type UserResponse = {
   id: string;
   email?: string;
-  name?: string;
+  displayName?: string;
+  login?: string;
   username?: string;
+  avatarUrl?: string;
+};
+
+type SaveExternalUserResponse = {
+  user: UserResponse;
+  publicUser: UserResponse;
+};
+
+type GetUserByIdResponse = {
+  user: UserResponse;
+  publicUser: UserResponse;
 };
 
 export function createUserServiceClient(
@@ -25,23 +36,21 @@ export function createUserServiceClient(
   const httpClient = createInternalClient(config, fetcher);
 
   return {
-    async findOrCreateFromExternalUser(input) {
-      const response = await httpClient.put<{
-        publicUser: PublicUserResponse;
-      }>("/internal/users/external", {
-        id: randomUUID(),
-        email: input.email ?? `${input.externalId}@tomorrow-school.local`,
-        name: input.displayName ?? input.login,
-        username: input.login,
-        loginCredential: input.login,
-        authProvider: input.provider === "tomorrow_school" ? "tomorrow-school" : "local"
+    async saveExternalUser(input) {
+      const response = await httpClient.put<SaveExternalUserResponse>("/internal/users/external", {
+        provider: input.provider,
+        externalUserId: input.externalUserId,
+        externalLogin: input.externalLogin,
+        email: input.email,
+        displayName: input.displayName,
+        avatarUrl: input.avatarUrl
       });
 
-      return toUser(response.publicUser);
+      return toUser(response.user);
     },
-    async getCurrentUser(input) {
-      const response = await httpClient.get<PublicUserResponse>(`/internal/users/${encodeURIComponent(input.userId)}/public`);
-      return toUser(response);
+    async getUserById(input) {
+      const response = await httpClient.get<GetUserByIdResponse>(`/internal/users/${encodeURIComponent(input.userId)}`);
+      return toUser(response.user);
     }
   };
 }
@@ -62,11 +71,13 @@ export function createInternalClient(
   );
 }
 
-function toUser(user: PublicUserResponse) {
+function toUser(user: UserResponse) {
   return {
     id: user.id,
-    login: user.username,
+    login: user.login ?? user.username,
+    username: user.username,
     email: user.email,
-    displayName: user.name
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl
   };
 }

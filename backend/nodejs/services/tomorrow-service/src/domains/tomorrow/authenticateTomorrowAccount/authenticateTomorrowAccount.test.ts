@@ -1,11 +1,11 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 import { BadRequestError, UnauthorizedError } from "@backend/microservice-sdk";
 import { createAuthenticateTomorrowAccount } from "./authenticateTomorrowAccount.js";
 
 test("authenticateTomorrowAccount validates input", async () => {
   const usecase = createAuthenticateTomorrowAccount({
-    tomorrowClient: {
+    tomorrowAuthClient: {
       async authenticate() {
         return {
           accessToken: "token"
@@ -23,12 +23,11 @@ test("authenticateTomorrowAccount validates input", async () => {
 test("authenticateTomorrowAccount returns a token without password data", async () => {
   const calls: Array<{ login: string; password: string }> = [];
   const usecase = createAuthenticateTomorrowAccount({
-    tomorrowClient: {
+    tomorrowAuthClient: {
       async authenticate(input) {
         calls.push(input);
         return {
           accessToken: "access-token",
-          refreshToken: "refresh-token",
           expiresAt: "2026-01-01T00:00:00.000Z",
           tokenType: "Bearer"
         };
@@ -45,7 +44,6 @@ test("authenticateTomorrowAccount returns a token without password data", async 
   assert.deepEqual(result, {
     token: {
       accessToken: "access-token",
-      refreshToken: "refresh-token",
       expiresAt: "2026-01-01T00:00:00.000Z",
       tokenType: "Bearer"
     }
@@ -55,7 +53,7 @@ test("authenticateTomorrowAccount returns a token without password data", async 
 
 test("authenticateTomorrowAccount converts external failures to unauthorized", async () => {
   const usecase = createAuthenticateTomorrowAccount({
-    tomorrowClient: {
+    tomorrowAuthClient: {
       async authenticate() {
         throw new Error("external auth failed");
       }

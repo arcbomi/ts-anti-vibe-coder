@@ -3,6 +3,23 @@ import type { FastifyInstance, FastifyRequest, preHandlerHookHandler } from "fas
 import type { LogoutUserInput } from "./logoutUser.input.js";
 import type { LogoutUserOutput } from "./logoutUser.output.js";
 
+const successResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["success", "data"],
+  properties: {
+    success: { type: "boolean", enum: [true] },
+    data: {
+      type: "object",
+      additionalProperties: false,
+      required: ["success"],
+      properties: {
+        success: { type: "boolean", enum: [true] }
+      }
+    }
+  }
+} as const;
+
 export function registerLogoutUserRoute(
   app: FastifyInstance,
   dependencies: {
@@ -15,7 +32,16 @@ export function registerLogoutUserRoute(
   app.post(
     "/auth/logout",
     {
-      preHandler: dependencies.requireAuth
+      preHandler: dependencies.requireAuth,
+      schema: {
+        tags: ["Auth"],
+        summary: "Sign out",
+        description: "Logs out the current authenticated user.",
+        security: [{ BearerAuth: [] }],
+        response: {
+          200: successResponseSchema
+        }
+      }
     },
     async (request, reply) => {
       const result = await dependencies.logoutUser({

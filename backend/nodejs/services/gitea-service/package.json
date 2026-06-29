@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./src/server.ts",
   "scripts": {
-    "dev": "tsx --env-file=../../.env ./src/server.ts",
+    "dev": "tsx ./src/server.ts",
     "typecheck": "tsc --noEmit -p ./tsconfig.json"
   },
   "dependencies": {

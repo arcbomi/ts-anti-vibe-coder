@@ -4,10 +4,9 @@ import type { AuthenticateTomorrowAccountOutput } from "./authenticateTomorrowAc
 import { assertTomorrowLoginAllowed } from "./authenticateTomorrowAccount.policy.js";
 
 export function createAuthenticateTomorrowAccount(deps: {
-  tomorrowClient: {
+  tomorrowAuthClient: {
     authenticate(input: { login: string; password: string }): Promise<{
       accessToken: string;
-      refreshToken?: string;
       expiresAt?: string;
       tokenType?: string;
     }>;
@@ -19,7 +18,7 @@ export function createAuthenticateTomorrowAccount(deps: {
     assertTomorrowLoginAllowed(input);
 
     try {
-      const token = await deps.tomorrowClient.authenticate({
+      const token = await deps.tomorrowAuthClient.authenticate({
         login: input.login.trim(),
         password: input.password
       });
@@ -27,7 +26,6 @@ export function createAuthenticateTomorrowAccount(deps: {
       return {
         token: {
           accessToken: token.accessToken,
-          refreshToken: token.refreshToken,
           expiresAt: token.expiresAt,
           tokenType: token.tokenType
         }

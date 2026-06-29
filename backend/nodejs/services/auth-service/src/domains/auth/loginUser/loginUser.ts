@@ -1,9 +1,6 @@
-import type {
-  EventBus,
-  Logger,
-  TomorrowSchoolAuthClient,
-  UserServiceClient
-} from "@backend/microservice-sdk";
+import type { EventBus, Logger, UserServiceClient } from "@backend/microservice-sdk";
+import type { TomorrowServiceClient } from "./shared/TomorrowServiceClient.js";
+import type { TomorrowTokenStore } from "./shared/TomorrowTokenStore.js";
 import type { CurrentUser } from "../model/CurrentUser.js";
 import type { AccessTokenIssuer } from "./createAccessToken.js";
 import type { LoginUserInput } from "./loginUser.input.js";
@@ -11,8 +8,9 @@ import type { LoginUserOutput } from "./loginUser.output.js";
 import { assertLoginInputAllowed } from "./loginUser.policy.js";
 
 export function createLoginUser(dependencies: {
-  tomorrowSchoolAuth: TomorrowSchoolAuthClient;
+  tomorrowService: TomorrowServiceClient;
   userService: UserServiceClient;
+  tomorrowTokenStore: TomorrowTokenStore;
   accessTokenIssuer: AccessTokenIssuer;
   eventBus: EventBus;
   logger?: Logger;
@@ -20,18 +18,29 @@ export function createLoginUser(dependencies: {
   return async function loginUser(input: LoginUserInput): Promise<LoginUserOutput> {
     assertLoginInputAllowed(input);
 
-    const externalUser = await dependencies.tomorrowSchoolAuth.login({
+    const tomorrowToken = await dependencies.tomorrowService.authenticateTomorrowAccount({
       login: input.login,
       password: input.password
     });
 
-    const user = await dependencies.userService.findOrCreateFromExternalUser({
-      provider: "tomorrow_school",
-      externalId: externalUser.externalId,
-      login: externalUser.login,
-      email: externalUser.email,
-      displayName: externalUser.displayName,
-      avatarUrl: externalUser.avatarUrl
+    const tomorrowUser = await dependencies.tomorrowService.getTomorrowUserInformation({
+      accessToken: tomorrowToken.accessToken
+    });
+
+    const user = await dependencies.userService.saveExternalUser({
+      provider: "tomorrow",
+      externalUserId: tomorrowUser.id,
+      externalLogin: tomorrowUser.login,
+      email: tomorrowUser.email,
+      displayName: tomorrowUser.displayName
+    });
+
+    await dependencies.tomorrowTokenStore.save({
+      userId: user.id,
+      tomorrowUserId: tomorrowUser.id,
+      tomorrowLogin: tomorrowUser.login,
+      accessToken: tomorrowToken.accessToken,
+      expiresAt: tomorrowToken.expiresAt
     });
 
     const accessToken = await dependencies.accessTokenIssuer.issue({
@@ -43,8 +52,8 @@ export function createLoginUser(dependencies: {
       key: user.id,
       value: {
         userId: user.id,
-        externalId: externalUser.externalId,
-        provider: "tomorrow_school",
+        externalId: tomorrowUser.id,
+        provider: "tomorrow",
         occurredAt: new Date().toISOString()
       }
     });
@@ -60,7 +69,7 @@ export function createLoginUser(dependencies: {
   };
 }
 
-function toCurrentUser(user: Awaited<ReturnType<UserServiceClient["findOrCreateFromExternalUser"]>>): CurrentUser {
+function toCurrentUser(user: Awaited<ReturnType<UserServiceClient["saveExternalUser"]>>): CurrentUser {
   return {
     id: user.id,
     login: user.login,

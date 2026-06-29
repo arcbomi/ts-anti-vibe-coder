@@ -5,10 +5,10 @@ import { createReadCurrentUser } from "./readCurrentUser.js";
 test("readCurrentUser returns user from user-service client", async () => {
   const readCurrentUser = createReadCurrentUser({
     userService: {
-      async findOrCreateFromExternalUser() {
+      async saveExternalUser() {
         throw new Error("not used");
       },
-      async getCurrentUser({ userId }) {
+      async getUserById({ userId }) {
         return {
           id: userId,
           login: "student",

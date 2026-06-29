@@ -1,8 +1,9 @@
+import { BadRequestError } from "@backend/microservice-sdk";
 import type { GetTomorrowUserInformationInput } from "./getTomorrowUserInformation.input.js";
 import type { GetTomorrowUserInformationOutput } from "./getTomorrowUserInformation.output.js";
 
 export function createGetTomorrowUserInformation(deps: {
-  tomorrowClient: {
+  tomorrowUserClient: {
     getCurrentUser(input: { accessToken: string }): Promise<{
       id: string;
       login: string;
@@ -17,7 +18,11 @@ export function createGetTomorrowUserInformation(deps: {
   return async function getTomorrowUserInformation(
     input: GetTomorrowUserInformationInput
   ): Promise<GetTomorrowUserInformationOutput> {
-    const user = await deps.tomorrowClient.getCurrentUser({
+    if (!String(input.accessToken ?? "").trim()) {
+      throw new BadRequestError("Tomorrow access token is required.");
+    }
+
+    const user = await deps.tomorrowUserClient.getCurrentUser({
       accessToken: input.accessToken
     });
 

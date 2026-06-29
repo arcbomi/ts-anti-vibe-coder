@@ -5,12 +5,15 @@
   "type": "module",
   "main": "./src/server.ts",
   "scripts": {
-    "dev": "tsx --env-file=../../.env ./src/server.ts",
-    "typecheck": "tsc --noEmit -p ./tsconfig.json"
+    "dev": "tsx ./src/server.ts",
+    "typecheck": "tsc --noEmit -p ./tsconfig.json",
+    "test": "node --import ../../node_modules/tsx/dist/loader.mjs --test ./src/**/*.test.ts"
   },
   "dependencies": {
     "@backend/microservice-sdk": "workspace:*",
+    "@fastify/swagger": "^8.15.0",
+    "@fastify/swagger-ui": "^3.1.0",
     "fastify": "^4.28.1",
-    "pg": "^8.16.3"
+    "mongodb": "^6.18.0"
   }
 }

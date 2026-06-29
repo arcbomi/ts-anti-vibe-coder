@@ -30,3 +30,18 @@ test("loadConfig throws on missing required env", () => {
     return true;
   });
 });
+
+test("loadConfig reads Redis and Mongo aliases", () => {
+  process.env.JWT_SECRET = "secret";
+  process.env.KAFKA_BROKERS = "redpanda:9092";
+  process.env.AUTH_SERVICE_PORT = "3005";
+  process.env.QUEUE_URL = "redis://redis:6379";
+  process.env.MONGO_URI = "mongodb://mongodb:27017";
+  process.env.MONGO_DATABASE = "anti_vibe";
+
+  const config = loadConfig("auth-service");
+
+  assert.equal(config.redisUrl, "redis://redis:6379");
+  assert.equal(config.mongodbUri, "mongodb://mongodb:27017");
+  assert.equal(config.mongodbDatabase, "anti_vibe");
+});

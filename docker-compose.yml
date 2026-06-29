@@ -1,161 +1,153 @@
-x-backend-env: &backend-env
-  APP_ENV: development
-  LOG_LEVEL: ${LOG_LEVEL:-info}
-  DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/anti_vibe?sslmode=disable}
-  POSTGRES_DSN: ${POSTGRES_DSN:-postgres://postgres:postgres@postgres:5432/anti_vibe?sslmode=disable}
-  QUEUE_URL: ${QUEUE_URL:-redis://redis:6379}
-  REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
-  QUEUE_NAMESPACE: ${QUEUE_NAMESPACE:-anti_vibe}
-  ANALYSIS_QUEUE_NAME: ${ANALYSIS_QUEUE_NAME:-analysis_jobs}
-  ANALYSIS_DEAD_LETTER_QUEUE_NAME: ${ANALYSIS_DEAD_LETTER_QUEUE_NAME:-analysis_jobs_dead}
-  REPO_DOWNLOAD_QUEUE_NAME: ${REPO_DOWNLOAD_QUEUE_NAME:-repo_download_jobs}
-  REPO_DOWNLOAD_DEAD_LETTER_QUEUE_NAME: ${REPO_DOWNLOAD_DEAD_LETTER_QUEUE_NAME:-repo_download_jobs_dead}
-  GITEA_BASE_URL: ${GITEA_BASE_URL:-https://gitea.com}
-  GITEA_BOT_TOKEN: ${GITEA_BOT_TOKEN:-replace_me}
-  GITEA_BOT_USERNAME: ${GITEA_BOT_USERNAME:-gitea-server-userbot}
-  TOMORROW_BASE_URL: ${TOMORROW_BASE_URL:-https://01.tomorrow-school.ai}
-  AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com}
-  AI_API_KEY: ${AI_API_KEY:-replace_me}
-  AI_MODEL: ${AI_MODEL:-gpt-4.1-mini}
-  AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
-  INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-local-internal-token}
-  AUTH_JWT_HS256_SECRET: ${AUTH_JWT_HS256_SECRET:-local-dev-jwt-secret-change-me}
-  JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me}
-  JWT_ACCESS_TOKEN_TTL_MINUTES: ${JWT_ACCESS_TOKEN_TTL_MINUTES:-60}
-  JWT_REFRESH_TOKEN_TTL_DAYS: ${JWT_REFRESH_TOKEN_TTL_DAYS:-30}
-  AUTH_SERVICE_REPOSITORY: ${AUTH_SERVICE_REPOSITORY:-database}
-  USER_SERVICE_REPOSITORY: ${USER_SERVICE_REPOSITORY:-database}
-  EXAM_TIMEZONE: ${EXAM_TIMEZONE:-Asia/Shanghai}
-  EXAM_OPEN_DOW: ${EXAM_OPEN_DOW:-Saturday}
-  EXAM_PASS_PERCENT: ${EXAM_PASS_PERCENT:-70}
-  EXAM_SERVICE_INTERNAL_TOKEN: ${EXAM_SERVICE_INTERNAL_TOKEN:-local-internal-token}
-  REPO_STORAGE_ROOT: ${REPO_STORAGE_ROOT:-data/repos}
-  REPO_CLONE_TIMEOUT_SECONDS: ${REPO_CLONE_TIMEOUT_SECONDS:-60}
-  TOMORROW_SERVICE_URL: ${TOMORROW_SERVICE_URL:-http://tomorrow-service:3001}
-  USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:3002}
-  TOMORROW_USERNAME: ${TOMORROW_USERNAME:-dmukhat}
-  TOMORROW_PASSWORD: ${TOMORROW_PASSWORD:-change-me}
-  TOMORROW_AUTH_ENDPOINT: ${TOMORROW_AUTH_ENDPOINT:-}
-  TOMORROW_REFERRER: ${TOMORROW_REFERRER:-}
-  TOMORROW_X_JWT_TOKEN: ${TOMORROW_X_JWT_TOKEN:-undefined}
-  TOMORROW_SESSION_ID: ${TOMORROW_SESSION_ID:-}
-  TOMORROW_PROFILE_PATH: ${TOMORROW_PROFILE_PATH:-/intra/astanahub/profile?event=96}
-  WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-3}
-  MAX_JOB_ATTEMPTS: ${MAX_JOB_ATTEMPTS:-3}
-  RETRY_DELAY_SECONDS: ${RETRY_DELAY_SECONDS:-30}
+name: ts-anti-vibe-coder
 
 x-node-service: &node-service
   image: node:22-alpine
   working_dir: /app/backend/nodejs
-  environment:
-    <<: *backend-env
+  env_file:
+    - .env
   volumes:
     - ./:/app
     - backend_node_modules:/app/backend/nodejs/node_modules
   depends_on:
-    postgres:
+    mongodb:
       condition: service_healthy
     redis:
+      condition: service_healthy
+    redpanda:
       condition: service_healthy
     nodejs-deps:
       condition: service_completed_successfully
   restart: unless-stopped
 
 services:
+  mongodb:
+    image: mongo:7
+    command: ["bash", "-lc", "exec mongod --quiet --bind_ip_all >/dev/null 2>&1"]
+    env_file:
+      - .env
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/27017'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7
+    env_file:
+      - .env
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.1.9
+    env_file:
+      - .env
+    command:
+      [
+        "redpanda",
+        "start",
+        "--overprovisioned",
+        "--smp",
+        "1",
+        "--memory",
+        "1G",
+        "--reserve-memory",
+        "0M",
+        "--node-id",
+        "0",
+        "--check=false",
+        "--kafka-addr",
+        "0.0.0.0:9092",
+        "--advertise-kafka-addr",
+        "redpanda:9092"
+      ]
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster info --brokers localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
   nodejs-deps:
     image: node:22-alpine
     working_dir: /app/backend/nodejs
-    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/worker-service fastify pg redis @backend/microservice-sdk"
+    env_file:
+      - .env
+    command:
+      [
+        "sh",
+        "-lc",
+        "corepack enable && sh ./scripts/ensure-deps.sh services/user-service fastify mongodb redis @fastify/swagger @fastify/swagger-ui @backend/microservice-sdk"
+      ]
     volumes:
       - ./:/app
       - backend_node_modules:/app/backend/nodejs/node_modules
 
   api-gateway:
     <<: *node-service
-    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/api-gateway fastify @backend/microservice-sdk && pnpm dev:gateway"
-    environment:
-      <<: *backend-env
-      API_GATEWAY_PORT: 8080
-      AUTH_SERVICE_BASE_URL: http://auth-service:3005
-      GITEA_READER_SERVICE_BASE_URL: http://gitea-service:8082
-      QUESTION_SERVICE_BASE_URL: http://exam-service:3006/api/v1
-      EXAM_SERVICE_BASE_URL: http://exam-service:3006/api/v1
+    command:
+      [
+        "sh",
+        "-lc",
+        "corepack enable && sh ./scripts/ensure-deps.sh services/api-gateway fastify @backend/microservice-sdk && pnpm dev:gateway"
+      ]
     ports:
       - "${API_GATEWAY_PORT:-8080}:8080"
 
   auth-service:
     <<: *node-service
-    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/auth-service fastify pg @backend/microservice-sdk && pnpm dev:auth"
-    environment:
-      <<: *backend-env
-      AUTH_SERVICE_PORT: 3005
-      AUTH_CREDENTIAL_SECRET: ${AUTH_CREDENTIAL_SECRET:-local-dev-jwt-secret-change-me}
-      TOMORROW_SCHOOL_AUTH_ENDPOINT: ${TOMORROW_SCHOOL_AUTH_ENDPOINT:-https://01.tomorrow-school.ai/api/auth/signin}
-      TOMORROW_SCHOOL_AUTH_TIMEOUT_SECONDS: ${TOMORROW_SCHOOL_AUTH_TIMEOUT_SECONDS:-10}
-      TOMORROW_SCHOOL_AUTH_REFERRER: ${TOMORROW_SCHOOL_AUTH_REFERRER:-}
-      TOMORROW_SCHOOL_AUTH_X_JWT_TOKEN: ${TOMORROW_SCHOOL_AUTH_X_JWT_TOKEN:-undefined}
-      TOMORROW_SCHOOL_AUTH_SESSION_ID: ${TOMORROW_SCHOOL_AUTH_SESSION_ID:-}
-      TOMORROW_SCHOOL_GRAPHQL_ENDPOINT: ${TOMORROW_SCHOOL_GRAPHQL_ENDPOINT:-}
-      TOMORROW_SCHOOL_GRAPHQL_ROLE: ${TOMORROW_SCHOOL_GRAPHQL_ROLE:-user}
-      DEV_SEED_USER_NAME: ${DEV_SEED_USER_NAME:-Student User}
-      DEV_SEED_USER_EMAIL: ${DEV_SEED_USER_EMAIL:-student@example.com}
-      DEV_SEED_USER_PASSWORD: ${DEV_SEED_USER_PASSWORD:-correct-password}
+    command:
+      [
+        "sh",
+        "-lc",
+        "corepack enable && sh ./scripts/ensure-deps.sh services/auth-service fastify redis @fastify/swagger @fastify/swagger-ui @backend/microservice-sdk && pnpm dev:auth"
+      ]
     ports:
       - "${AUTH_SERVICE_PORT:-3005}:3005"
 
-  user-service:
-    <<: *node-service
-    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/user-service fastify pg @backend/microservice-sdk && pnpm dev:user"
-    environment:
-      <<: *backend-env
-      USER_SERVICE_PORT: 3002
-    ports:
-      - "${USER_SERVICE_PORT:-3002}:3002"
-
-  gitea-service:
-    <<: *node-service
-    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/gitea-service fastify pg @backend/microservice-sdk && pnpm dev:gitea"
-    environment:
-      <<: *backend-env
-      GITEA_SERVICE_PORT: 8082
-    ports:
-      - "${GITEA_READER_SERVICE_HTTP_PORT:-8082}:8082"
-
-  exam-service:
-    <<: *node-service
-    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/exam-service fastify @backend/microservice-sdk && pnpm dev:exam"
-    environment:
-      <<: *backend-env
-      EXAM_SERVICE_PORT: 3006
-    ports:
-      - "${EXAM_SERVICE_PORT:-3006}:3006"
-
   tomorrow-service:
     <<: *node-service
-    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/tomorrow-service fastify @backend/microservice-sdk && pnpm dev:tomorrow"
-    environment:
-      <<: *backend-env
-      TOMORROW_SERVICE_PORT: 3001
+    command:
+      [
+        "sh",
+        "-lc",
+        "corepack enable && sh ./scripts/ensure-deps.sh services/tomorrow-service fastify @fastify/swagger @fastify/swagger-ui @backend/microservice-sdk && pnpm dev:tomorrow"
+      ]
     ports:
       - "${TOMORROW_SERVICE_PORT:-3001}:3001"
 
-  worker-service:
+  user-service:
     <<: *node-service
-    command: sh -lc "corepack enable && sh ./scripts/ensure-deps.sh services/worker-service fastify pg redis @backend/microservice-sdk && pnpm dev:worker"
-    environment:
-      <<: *backend-env
-      WORKER_SERVICE_PORT: 3007
+    command:
+      [
+        "sh",
+        "-lc",
+        "corepack enable && sh ./scripts/ensure-deps.sh services/user-service fastify mongodb @fastify/swagger @fastify/swagger-ui @backend/microservice-sdk && pnpm dev:user"
+      ]
     ports:
-      - "${WORKER_SERVICE_PORT:-3007}:3007"
+      - "${USER_SERVICE_PORT:-3002}:3002"
 
   frontend:
     build:
       context: ./frontend
       target: dev
-    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
-      VITE_GITEA_BOT_USERNAME: ${GITEA_BOT_USERNAME:-gitea-server-userbot}
+    env_file:
+      - .env
+    command: ["sh", "./scripts/start-dev.sh"]
     volumes:
       - ./frontend:/app/frontend
       - frontend_node_modules:/app/frontend/node_modules
@@ -164,6 +156,45 @@ services:
     depends_on:
       - api-gateway
 
+  gitea-service:
+    <<: *node-service
+    profiles: ["optional"]
+    command:
+      [
+        "sh",
+        "-lc",
+        "corepack enable && sh ./scripts/ensure-deps.sh services/gitea-service fastify pg @backend/microservice-sdk && pnpm dev:gitea"
+      ]
+    ports:
+      - "${GITEA_READER_SERVICE_HTTP_PORT:-8082}:8082"
+
+  exam-service:
+    <<: *node-service
+    profiles: ["optional"]
+    command:
+      [
+        "sh",
+        "-lc",
+        "corepack enable && sh ./scripts/ensure-deps.sh services/exam-service fastify @backend/microservice-sdk && pnpm dev:exam"
+      ]
+    ports:
+      - "${EXAM_SERVICE_PORT:-3006}:3006"
+
+  worker-service:
+    <<: *node-service
+    profiles: ["optional"]
+    command:
+      [
+        "sh",
+        "-lc",
+        "corepack enable && sh ./scripts/ensure-deps.sh services/worker-service fastify pg redis @backend/microservice-sdk && pnpm dev:worker"
+      ]
+    ports:
+      - "${WORKER_SERVICE_PORT:-3007}:3007"
+
 volumes:
   backend_node_modules:
   frontend_node_modules:
+  mongodb_data:
+  redis_data:
+  redpanda_data:

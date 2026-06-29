@@ -1,23 +1,25 @@
 export type UserServiceClient = {
-  findOrCreateFromExternalUser(input: {
-    provider: "tomorrow_school";
-    externalId: string;
-    login: string;
+  saveExternalUser(input: {
+    provider: "tomorrow";
+    externalUserId: string;
+    externalLogin: string;
     email?: string;
     displayName?: string;
     avatarUrl?: string;
   }): Promise<{
     id: string;
     login?: string;
+    username?: string;
     email?: string;
     displayName?: string;
     avatarUrl?: string;
   }>;
-  getCurrentUser(input: {
+  getUserById(input: {
     userId: string;
   }): Promise<{
     id: string;
     login?: string;
+    username?: string;
     email?: string;
     displayName?: string;
     avatarUrl?: string;

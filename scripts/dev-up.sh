@@ -6,7 +6,14 @@ cd "${ROOT_DIR}"
 
 if [[ ! -f .env ]]; then
   cp .env.example .env
-  echo "Created .env from .env.example. Update secrets such as GITEA_BOT_TOKEN and AI_API_KEY when needed."
+  echo "Created .env from .env.example. Update secrets such as AI_API_KEY when needed."
 fi
 
-docker compose -f docker-compose.yml -f docker-compose.infra.yml up --build
+if [[ "$#" -eq 0 ]]; then
+  docker compose up --build
+  exit 0
+fi
+
+BASE_SERVICES=(nodejs-deps mongodb redis redpanda)
+
+docker compose up --build "${BASE_SERVICES[@]}" "$@"
